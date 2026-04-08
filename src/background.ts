@@ -8,7 +8,7 @@ import {MessageFactory} from './types/messages';
 
 import contentScriptPath from './content?script';
 
-stateManager.initialize();
+stateManager.initialize().then(r => console.log('[Argus] State manager initialized:', r)).catch(e => console.error('[Argus] Failed to initialize state manager:', e));
 
 chrome.commands.onCommand.addListener(async (command) => {
     try {

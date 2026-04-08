@@ -6,10 +6,10 @@ import {DEFAULT_SETTINGS} from '../services/state-manager';
 import {listModels, type ModelInfo} from '../services/gemini-adapter';
 import {getStorageValues, setStorageValues} from '../utils/chrome-helpers';
 
-const DEFAULT_MODELS: ModelInfo[] = [
-    {id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash'},
-    {id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite'},
-];
+const DEFAULT_MODELS: ModelInfo[] = [{id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash'}, {
+    id: 'gemini-2.0-flash-lite',
+    name: 'Gemini 2.0 Flash Lite'
+},];
 
 export default function OptionsApp() {
     const [settings, setSettings] = useState<any>(DEFAULT_SETTINGS);
@@ -37,7 +37,7 @@ export default function OptionsApp() {
         getStorageValues(DEFAULT_SETTINGS).then((items) => {
             setSettings(items);
             if (items.gemini_apiKey) {
-                fetchModels(items.gemini_apiKey);
+                fetchModels(items.gemini_apiKey as string);
             }
         }).catch(err => {
             console.error(err);
@@ -92,135 +92,141 @@ export default function OptionsApp() {
         setTimeout(() => setStatus(null), 2500);
     };
 
-    return (
-        <div className="page">
-            <header>
-                <h1>⚙️ Argus Settings</h1>
-            </header>
+    return (<div className="page">
+        <header>
+            <h1>⚙️ Argus Settings</h1>
+        </header>
 
-            <section className="panel">
-                <h2>API Configuration</h2>
+        <section className="panel">
+            <h2>API Configuration</h2>
 
-                <div className="form-group">
-                    <label htmlFor="gemini_apiKey">API Key *</label>
-                    <input
-                        type="password"
-                        id="gemini_apiKey"
-                        name="gemini_apiKey"
-                        value={settings.gemini_apiKey}
-                        onChange={handleChange}
-                        placeholder="Enter your Gemini API key"
-                    />
-                    <small>
-                        <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">
-                            Get API key from Google AI Studio →
-                        </a>
-                    </small>
-                </div>
-
-                <div className="form-group">
-                    <label htmlFor="gemini_model">
-                        Model {loadingModels && <span className="loading">Loading...</span>}
-                    </label>
-                    <select
-                        id="gemini_model"
-                        name="gemini_model"
-                        value={settings.gemini_model}
-                        onChange={handleChange}
-                        disabled={loadingModels}
-                    >
-                        {models.map(m => (
-                            <option key={m.id} value={m.id} title={m.description}>
-                                {m.name || m.id}
-                            </option>
-                        ))}
-                    </select>
-                    {models.length > DEFAULT_MODELS.length && (
-                        <small>{models.length} models available</small>
-                    )}
-                </div>
-
-                <div className="form-group">
-                    <label htmlFor="gemini_prompt">Default Prompt</label>
-                    <textarea
-                        id="gemini_prompt"
-                        name="gemini_prompt"
-                        value={settings.gemini_prompt}
-                        onChange={handleChange}
-                        placeholder="Instructions for analyzing captured pages"
-                        rows={5}
-                    />
-                </div>
-            </section>
-
-            <section className="panel">
-                <h2>Overlay Style</h2>
-
-                <div className="form-row">
-                    <div className="form-group">
-                        <label htmlFor="style_fontSize">Font Size</label>
-                        <input
-                            type="number"
-                            id="style_fontSize"
-                            name="style_fontSize"
-                            value={settings.style_fontSize}
-                            onChange={handleChange}
-                            min="10"
-                            max="24"
-                        />
-                    </div>
-                </div>
-
-                <small className="hint">💡 Drag the overlay to reposition it</small>
-
-                <div className="form-row">
-                    <div className="form-group">
-                        <label htmlFor="style_textColor">Text Color</label>
-                        <input
-                            type="color"
-                            id="style_textColor"
-                            name="style_textColor"
-                            value={settings.style_textColor}
-                            onChange={handleChange}
-                        />
-                    </div>
-
-                    <div className="form-group">
-                        <label htmlFor="style_bgColor">Background</label>
-                        <input
-                            type="color"
-                            id="style_bgColor"
-                            name="style_bgColor"
-                            value={settings.style_bgColor}
-                            onChange={handleChange}
-                        />
-                    </div>
-
-                    <div className="form-group">
-                        <label htmlFor="style_bgOpacity">Opacity (%)</label>
-                        <input
-                            type="number"
-                            id="style_bgOpacity"
-                            name="style_bgOpacity"
-                            value={settings.style_bgOpacity}
-                            onChange={handleChange}
-                            min="50"
-                            max="100"
-                        />
-                    </div>
-                </div>
-            </section>
-
-            <div className="footer">
-                <button className="reset-button" onClick={handleReset}>Reset</button>
-                <button className="save-button" onClick={handleSave}>Save</button>
+            <div className="form-group">
+                <label htmlFor="gemini_apiKey">API Key *</label>
+                <input
+                    type="password"
+                    id="gemini_apiKey"
+                    name="gemini_apiKey"
+                    value={settings.gemini_apiKey}
+                    onChange={handleChange}
+                    placeholder="Enter your Gemini API key"
+                />
+                <small>
+                    <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">
+                        Get API key from Google AI Studio →
+                    </a>
+                </small>
             </div>
 
-            {status && (
-                <div className={`status show ${status.type}`}>
-                    {status.message}
+            <div className="form-group">
+                <label htmlFor="gemini_model">
+                    Model {loadingModels && <span className="loading">Loading...</span>}
+                </label>
+                <select
+                    id="gemini_model"
+                    name="gemini_model"
+                    value={settings.gemini_model}
+                    onChange={handleChange}
+                    disabled={loadingModels}
+                >
+                    {models.map(m => (<option key={m.id} value={m.id} title={m.description}>
+                        {m.name || m.id}
+                    </option>))}
+                </select>
+                {models.length > DEFAULT_MODELS.length && (<small>{models.length} models available</small>)}
+            </div>
+
+            <div className="form-group">
+                <label htmlFor="gemini_prompt">Default Prompt</label>
+                <textarea
+                    id="gemini_prompt"
+                    name="gemini_prompt"
+                    value={settings.gemini_prompt}
+                    onChange={handleChange}
+                    placeholder="Instructions for analyzing captured pages"
+                    rows={5}
+                />
+            </div>
+
+            <div className="form-group">
+                <label htmlFor="gemini_timeout">Request Timeout (seconds)</label>
+                <input
+                    type="number"
+                    id="gemini_timeout"
+                    name="gemini_timeout"
+                    value={settings.gemini_timeout}
+                    onChange={handleChange}
+                    min="30"
+                    max="300"
+                />
+                <small>How long to wait for API response (30-300 seconds)</small>
+            </div>
+        </section>
+
+        <section className="panel">
+            <h2>Overlay Style</h2>
+
+            <div className="form-row">
+                <div className="form-group">
+                    <label htmlFor="style_fontSize">Font Size</label>
+                    <input
+                        type="number"
+                        id="style_fontSize"
+                        name="style_fontSize"
+                        value={settings.style_fontSize}
+                        onChange={handleChange}
+                        min="10"
+                        max="24"
+                    />
                 </div>
-            )}
+            </div>
+
+            <small className="hint">💡 Drag the overlay to reposition it</small>
+
+            <div className="form-row">
+                <div className="form-group">
+                    <label htmlFor="style_textColor">Text Color</label>
+                    <input
+                        type="color"
+                        id="style_textColor"
+                        name="style_textColor"
+                        value={settings.style_textColor}
+                        onChange={handleChange}
+                    />
+                </div>
+
+                <div className="form-group">
+                    <label htmlFor="style_bgColor">Background</label>
+                    <input
+                        type="color"
+                        id="style_bgColor"
+                        name="style_bgColor"
+                        value={settings.style_bgColor}
+                        onChange={handleChange}
+                    />
+                </div>
+
+                <div className="form-group">
+                    <label htmlFor="style_bgOpacity">Opacity (%)</label>
+                    <input
+                        type="number"
+                        id="style_bgOpacity"
+                        name="style_bgOpacity"
+                        value={settings.style_bgOpacity}
+                        onChange={handleChange}
+                        min="50"
+                        max="100"
+                    />
+                </div>
+            </div>
+        </section>
+
+        <div className="footer">
+            <button className="reset-button" onClick={handleReset}>Reset</button>
+            <button className="save-button" onClick={handleSave}>Save</button>
         </div>
-    );
+
+        {status && (<div className={`status show ${status.type}`}>
+            {status.message}
+        </div>)}
+    </div>);
 }

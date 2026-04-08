@@ -8,6 +8,7 @@ export interface ExtensionSettings {
     gemini_apiKey: string;
     gemini_model: string;
     gemini_prompt: string;
+    gemini_timeout: number;
     style_fontSize: number;
     style_textColor: string;
     style_bgColor: string;
@@ -22,6 +23,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
     gemini_apiKey: '',
     gemini_model: 'gemini-2.0-flash',
     gemini_prompt: DEFAULT_PROMPT,
+    gemini_timeout: 90,
     style_fontSize: 13,
     style_textColor: '#e8e8e8',
     style_bgColor: '#1e1e1e',
