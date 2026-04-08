@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "argus",
+  "version": "1.6",
+  "description": "Quietly powerful exam helper chrome extension",
+  "main": "background.js",
+  "scripts": {
+    "test": "vitest run",
+    "build": "vite build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/E414CF6/Argus.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/E414CF6/Argus/issues"
+  },
+  "homepage": "https://github.com/E414CF6/Argus#readme",
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.4.0",
+    "@types/chrome": "^0.1.39",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.2",
+    "vitest": "^4.1.0"
+  },
+  "dependencies": {
+    "@google/genai": "^1.48.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "overrides": {
+    "rollup": "^4.60.1"
+  }
+}
