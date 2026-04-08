@@ -158,21 +158,6 @@ export default function OptionsApp() {
 
                 <div className="form-row">
                     <div className="form-group">
-                        <label htmlFor="style_position">Position</label>
-                        <select
-                            id="style_position"
-                            name="style_position"
-                            value={settings.style_position}
-                            onChange={handleChange}
-                        >
-                            <option value="bottom-right">Bottom Right</option>
-                            <option value="bottom-left">Bottom Left</option>
-                            <option value="top-right">Top Right</option>
-                            <option value="top-left">Top Left</option>
-                        </select>
-                    </div>
-
-                    <div className="form-group">
                         <label htmlFor="style_fontSize">Font Size</label>
                         <input
                             type="number"
@@ -185,6 +170,8 @@ export default function OptionsApp() {
                         />
                     </div>
                 </div>
+
+                <small className="hint">💡 Drag the overlay to reposition it</small>
 
                 <div className="form-row">
                     <div className="form-group">

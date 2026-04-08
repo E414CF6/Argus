@@ -3,7 +3,8 @@ interface OverlaySettings {
     style_textColor: string;
     style_bgColor: string;
     style_bgOpacity: number;
-    style_position: string;
+    overlay_x: number;
+    overlay_y: number;
 }
 
 const DEFAULT_STYLE: OverlaySettings = {
@@ -11,7 +12,8 @@ const DEFAULT_STYLE: OverlaySettings = {
     style_textColor: '#e8e8e8',
     style_bgColor: '#1e1e1e',
     style_bgOpacity: 95,
-    style_position: 'bottom-right',
+    overlay_x: -1,
+    overlay_y: -1,
 };
 
 if (typeof window.argusInjected === 'undefined') {
@@ -26,26 +28,52 @@ if (typeof window.argusInjected === 'undefined') {
         return `rgba(${r}, ${g}, ${b}, ${opacity / 100})`;
     }
 
-    function getPositionStyle(pos: string): string {
-        switch (pos) {
-            case 'top-left':
-                return 'top: 20px; left: 20px;';
-            case 'top-right':
-                return 'top: 20px; right: 20px;';
-            case 'bottom-left':
-                return 'bottom: 20px; left: 20px;';
-            default:
-                return 'bottom: 20px; right: 20px;';
-        }
-    }
-
     async function loadSettings(): Promise<OverlaySettings> {
         return chrome.storage.local.get(DEFAULT_STYLE) as Promise<OverlaySettings>;
     }
 
+    async function savePosition(x: number, y: number) {
+        await chrome.storage.local.set({overlay_x: x, overlay_y: y});
+    }
+
+    function makeDraggable(overlay: HTMLElement) {
+        let isDragging = false;
+        let startX = 0, startY = 0;
+        let origX = 0, origY = 0;
+
+        overlay.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            origX = overlay.offsetLeft;
+            origY = overlay.offsetTop;
+            overlay.style.cursor = 'grabbing';
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            const newX = Math.max(0, Math.min(window.innerWidth - overlay.offsetWidth, origX + dx));
+            const newY = Math.max(0, Math.min(window.innerHeight - overlay.offsetHeight, origY + dy));
+            overlay.style.left = `${newX}px`;
+            overlay.style.top = `${newY}px`;
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                overlay.style.cursor = 'grab';
+                savePosition(overlay.offsetLeft, overlay.offsetTop);
+            }
+        });
+    }
+
     async function showOverlay(text: string) {
         const s = await loadSettings();
-        let overlay = document.getElementById(OVERLAY_ID);
+        let overlay = document.getElementById(OVERLAY_ID) as HTMLElement | null;
+        const isNew = !overlay;
 
         if (!overlay) {
             overlay = document.createElement('div');
@@ -54,9 +82,17 @@ if (typeof window.argusInjected === 'undefined') {
         }
 
         overlay.textContent = text;
+
+        // Default position: bottom-right with 20px margin
+        const defaultX = window.innerWidth - 420;
+        const defaultY = window.innerHeight - 320;
+        const posX = s.overlay_x >= 0 ? s.overlay_x : defaultX;
+        const posY = s.overlay_y >= 0 ? s.overlay_y : defaultY;
+
         overlay.style.cssText = `
             position: fixed;
-            ${getPositionStyle(s.style_position)}
+            left: ${posX}px;
+            top: ${posY}px;
             max-width: 400px;
             max-height: 300px;
             padding: 12px 16px;
@@ -67,8 +103,13 @@ if (typeof window.argusInjected === 'undefined') {
             z-index: 999999999;
             white-space: pre-wrap;
             overflow-y: auto;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            cursor: grab;
+            user-select: none;
         `;
+
+        if (isNew) {
+            makeDraggable(overlay);
+        }
     }
 
     function toggleOverlay() {

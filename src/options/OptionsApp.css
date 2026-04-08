@@ -249,3 +249,8 @@ select:disabled {
     opacity: 0.5;
     cursor: wait;
 }
+
+.hint {
+    color: var(--muted);
+    font-style: italic;
+}
