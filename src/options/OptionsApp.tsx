@@ -199,6 +199,25 @@ export default function OptionsApp() {
                 </div>
 
                 <div className="form-group">
+                    <label htmlFor="style_maxHeight">Max Height</label>
+                    <div className="form-control">
+                        <div className="input-with-suffix">
+                            <input
+                                type="number"
+                                id="style_maxHeight"
+                                name="style_maxHeight"
+                                value={settings.style_maxHeight || 300}
+                                onChange={handleChange}
+                                min="100"
+                                max="1000"
+                            />
+                            <span className="suffix">px</span>
+                        </div>
+                        <small>Max vertical size of the overlay before scrolling</small>
+                    </div>
+                </div>
+
+                <div className="form-group">
                     <label htmlFor="style_bgOpacity">Opacity</label>
                     <div className="form-control">
                         <div className="input-with-suffix">

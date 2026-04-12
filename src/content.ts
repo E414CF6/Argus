@@ -3,6 +3,7 @@ interface OverlaySettings {
     style_textColor: string;
     style_bgColor: string;
     style_bgOpacity: number;
+    style_maxHeight: number;
     overlay_x: number;
     overlay_y: number;
 }
@@ -12,6 +13,7 @@ const DEFAULT_STYLE: OverlaySettings = {
     style_textColor: '#e8e8e8',
     style_bgColor: '#1e1e1e',
     style_bgOpacity: 95,
+    style_maxHeight: 48,
     overlay_x: -1,
     overlay_y: -1,
 };
@@ -75,6 +77,17 @@ if (typeof window.argusInjected === 'undefined') {
         let overlay = document.getElementById(OVERLAY_ID) as HTMLElement | null;
         const isNew = !overlay;
 
+        if (!document.getElementById(`${OVERLAY_ID}-style`)) {
+            const style = document.createElement('style');
+            style.id = `${OVERLAY_ID}-style`;
+            style.textContent = `
+                #${OVERLAY_ID}::-webkit-scrollbar {
+                    display: none;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
         if (!overlay) {
             overlay = document.createElement('div');
             overlay.id = OVERLAY_ID;
@@ -94,7 +107,7 @@ if (typeof window.argusInjected === 'undefined') {
             left: ${posX}px;
             top: ${posY}px;
             max-width: 400px;
-            max-height: 300px;
+            max-height: ${s.style_maxHeight}px;
             padding: 12px 16px;
             background: ${hexToRgba(s.style_bgColor, s.style_bgOpacity)};
             color: ${s.style_textColor};
@@ -103,6 +116,8 @@ if (typeof window.argusInjected === 'undefined') {
             z-index: 999999999;
             white-space: pre-wrap;
             overflow-y: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
             cursor: grab;
             user-select: none;
         `;

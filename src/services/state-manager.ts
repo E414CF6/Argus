@@ -13,6 +13,7 @@ export interface ExtensionSettings {
     style_textColor: string;
     style_bgColor: string;
     style_bgOpacity: number;
+    style_maxHeight: number;
 
     [key: string]: unknown;
 }
@@ -28,6 +29,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
     style_textColor: '#e8e8e8',
     style_bgColor: '#1e1e1e',
     style_bgOpacity: 95,
+    style_maxHeight: 300,
 };
 
 class StateManager {
