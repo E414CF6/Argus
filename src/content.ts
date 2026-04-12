@@ -61,6 +61,10 @@ if (typeof window.argusInjected === 'undefined') {
                 return;
             }
 
+            // Only drag if clicking on the overlay itself (padding area)
+            // or if the user is holding Alt key (force drag)
+            if (e.target !== overlay && !e.altKey) return;
+
             isDragging = true;
             startX = e.clientX;
             startY = e.clientY;
@@ -111,6 +115,9 @@ if (typeof window.argusInjected === 'undefined') {
                 #${OVERLAY_ID}::-webkit-scrollbar {
                     display: none;
                 }
+                #${OVERLAY_ID}::-webkit-resizer {
+                    background-color: transparent;
+                }
             `;
             document.head.appendChild(style);
         }
@@ -121,7 +128,14 @@ if (typeof window.argusInjected === 'undefined') {
             document.body.appendChild(overlay);
         }
 
-        overlay.textContent = text;
+        overlay.innerHTML = '';
+        const content = document.createElement('div');
+        content.id = `${OVERLAY_ID}-content`;
+        content.style.userSelect = 'text';
+        content.style.cursor = 'text';
+        content.style.whiteSpace = 'pre-wrap';
+        content.textContent = text;
+        overlay.appendChild(content);
 
         // Default position: bottom-right with 20px margin
         const defaultX = window.innerWidth - 420;
@@ -141,13 +155,12 @@ if (typeof window.argusInjected === 'undefined') {
             font: ${s.style_fontSize}px/1.5 system-ui, sans-serif;
             border-radius: 8px;
             z-index: 999999999;
-            white-space: pre-wrap;
             overflow: auto;
             resize: both;
             scrollbar-width: none;
             -ms-overflow-style: none;
             cursor: grab;
-            user-select: none;
+            user-select: text;
         `;
 
         if (isNew) {
