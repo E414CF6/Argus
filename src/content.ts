@@ -3,6 +3,7 @@ interface OverlaySettings {
     style_textColor: string;
     style_bgColor: string;
     style_bgOpacity: number;
+    style_maxWidth: number;
     style_maxHeight: number;
     overlay_x: number;
     overlay_y: number;
@@ -13,6 +14,7 @@ const DEFAULT_STYLE: OverlaySettings = {
     style_textColor: '#e8e8e8',
     style_bgColor: '#1e1e1e',
     style_bgOpacity: 95,
+    style_maxWidth: 400,
     style_maxHeight: 48,
     overlay_x: -1,
     overlay_y: -1,
@@ -38,12 +40,27 @@ if (typeof window.argusInjected === 'undefined') {
         await chrome.storage.local.set({overlay_x: x, overlay_y: y});
     }
 
+    async function saveSize(width: number, height: number) {
+        await chrome.storage.local.set({style_maxWidth: width, style_maxHeight: height});
+    }
+
     function makeDraggable(overlay: HTMLElement) {
         let isDragging = false;
+        let isResizing = false;
         let startX = 0, startY = 0;
         let origX = 0, origY = 0;
 
         overlay.addEventListener('mousedown', (e) => {
+            const rect = overlay.getBoundingClientRect();
+            // Check if click is near bottom-right corner (native resize handle)
+            if (e.clientX > rect.right - 20 && e.clientY > rect.bottom - 20) {
+                isResizing = true;
+                // Temporarily lift max constraints to allow native resizing upwards
+                overlay.style.maxWidth = '100vw';
+                overlay.style.maxHeight = '100vh';
+                return;
+            }
+
             isDragging = true;
             startX = e.clientX;
             startY = e.clientY;
@@ -64,7 +81,17 @@ if (typeof window.argusInjected === 'undefined') {
         });
 
         document.addEventListener('mouseup', () => {
-            if (isDragging) {
+            if (isResizing) {
+                isResizing = false;
+                // Save new dimensions and restore constraints
+                const newWidth = overlay.offsetWidth;
+                const newHeight = overlay.offsetHeight;
+                overlay.style.width = '';
+                overlay.style.height = '';
+                overlay.style.maxWidth = `${newWidth}px`;
+                overlay.style.maxHeight = `${newHeight}px`;
+                saveSize(newWidth, newHeight);
+            } else if (isDragging) {
                 isDragging = false;
                 overlay.style.cursor = 'grab';
                 savePosition(overlay.offsetLeft, overlay.offsetTop);
@@ -106,7 +133,7 @@ if (typeof window.argusInjected === 'undefined') {
             position: fixed;
             left: ${posX}px;
             top: ${posY}px;
-            max-width: 400px;
+            max-width: ${s.style_maxWidth}px;
             max-height: ${s.style_maxHeight}px;
             padding: 12px 16px;
             background: ${hexToRgba(s.style_bgColor, s.style_bgOpacity)};
@@ -115,7 +142,8 @@ if (typeof window.argusInjected === 'undefined') {
             border-radius: 8px;
             z-index: 999999999;
             white-space: pre-wrap;
-            overflow-y: auto;
+            overflow: auto;
+            resize: both;
             scrollbar-width: none;
             -ms-overflow-style: none;
             cursor: grab;

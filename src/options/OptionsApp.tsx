@@ -150,7 +150,7 @@ export default function OptionsApp() {
                             value={settings.gemini_prompt}
                             onChange={handleChange}
                             placeholder="Instructions for analyzing captured pages"
-                            rows={5}
+                            rows={14}
                         />
                     </div>
                 </div>
@@ -195,6 +195,25 @@ export default function OptionsApp() {
                             />
                             <span className="suffix">px</span>
                         </div>
+                    </div>
+                </div>
+
+                <div className="form-group">
+                    <label htmlFor="style_maxWidth">Max Width</label>
+                    <div className="form-control">
+                        <div className="input-with-suffix">
+                            <input
+                                type="number"
+                                id="style_maxWidth"
+                                name="style_maxWidth"
+                                value={settings.style_maxWidth || 400}
+                                onChange={handleChange}
+                                min="100"
+                                max="1000"
+                            />
+                            <span className="suffix">px</span>
+                        </div>
+                        <small>Max horizontal size of the overlay</small>
                     </div>
                 </div>
 
