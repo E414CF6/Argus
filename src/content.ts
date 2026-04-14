@@ -53,8 +53,11 @@ if (typeof window.argusInjected === 'undefined') {
         overlay.addEventListener('mousedown', (e) => {
             const rect = overlay.getBoundingClientRect();
             // Check if click is near bottom-right corner (native resize handle)
-            if (e.clientX > rect.right - 20 && e.clientY > rect.bottom - 20) {
+            if (e.clientX > rect.right - 16 && e.clientY > rect.bottom - 16) {
                 isResizing = true;
+                // Capture current size so it doesn't jump when we lift max constraints
+                overlay.style.width = `${overlay.offsetWidth}px`;
+                overlay.style.height = `${overlay.offsetHeight}px`;
                 // Temporarily lift max constraints to allow native resizing upwards
                 overlay.style.maxWidth = '100vw';
                 overlay.style.maxHeight = '100vh';

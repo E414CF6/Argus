@@ -84,8 +84,7 @@ export async function queryGemini(dataUrl: string, settings: ExtensionSettings, 
 
         const timeoutMs = (gemini_timeout || 90) * 1000;
         const response = await Promise.race([ai.models.generateContent({
-            model: gemini_model,
-            contents: parts
+            model: gemini_model, contents: parts
         }), new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timed out')), timeoutMs))]);
 
         return response.text || 'Empty response from API';
