@@ -41,7 +41,7 @@ class SessionManager {
     }
 
     async getCurrentSession(): Promise<string> {
-        let sessionId = stateManager.getCurrentSessionId();
+        let sessionId = await stateManager.getCurrentSessionId();
         if (!sessionId || !(await storageService.getSession(sessionId))) {
             sessionId = await this.createSession();
         }
@@ -50,12 +50,7 @@ class SessionManager {
 
     async addMessage(sessionId: string, role: 'user' | 'assistant', content: string, imageDataUrl?: string): Promise<void> {
         const entry: HistoryEntry = {
-            id: `m_${Date.now()}`,
-            sessionId,
-            role,
-            content,
-            imageDataUrl,
-            timestamp: Date.now()
+            id: `m_${Date.now()}`, sessionId, role, content, imageDataUrl, timestamp: Date.now()
         };
         await storageService.saveHistory(sessionId, entry);
 
@@ -70,10 +65,7 @@ class SessionManager {
     async getHistory(sessionId: string): Promise<ConversationMessage[]> {
         const entries = await storageService.getHistory(sessionId);
         return entries.map(e => ({
-            role: e.role,
-            content: e.content,
-            imageDataUrl: e.imageDataUrl,
-            timestamp: e.timestamp
+            role: e.role, content: e.content, imageDataUrl: e.imageDataUrl, timestamp: e.timestamp
         }));
     }
 }

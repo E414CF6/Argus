@@ -38,6 +38,7 @@ class StateManager {
     private static instance: StateManager;
     private currentSessionId: string | null = null;
     private settingsCache: ExtensionSettings | null = null;
+    private initPromise: Promise<void> | null = null;
 
     private constructor() {
     }
@@ -50,20 +51,28 @@ class StateManager {
     }
 
     async initialize(): Promise<void> {
-        this.currentSessionId = await storageService.getSetting<string | null>('currentSessionId', null);
-        this.settingsCache = await storageService.getSettings<ExtensionSettings>(DEFAULT_SETTINGS);
+        if (!this.initPromise) {
+            this.initPromise = (async () => {
+                this.currentSessionId = await storageService.getSetting<string | null>('currentSessionId', null);
+                this.settingsCache = await storageService.getSettings<ExtensionSettings>(DEFAULT_SETTINGS);
+            })();
+        }
+        return this.initPromise;
     }
 
-    getCurrentSessionId(): string | null {
+    async getCurrentSessionId(): Promise<string | null> {
+        await this.initialize();
         return this.currentSessionId;
     }
 
     async setCurrentSessionId(sessionId: string | null): Promise<void> {
+        await this.initialize();
         this.currentSessionId = sessionId;
         await storageService.setSetting('currentSessionId', sessionId);
     }
 
     async getSettings(): Promise<ExtensionSettings> {
+        await this.initialize();
         if (!this.settingsCache) {
             this.settingsCache = await storageService.getSettings<ExtensionSettings>(DEFAULT_SETTINGS);
         }

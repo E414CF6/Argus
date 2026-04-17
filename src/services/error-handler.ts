@@ -2,8 +2,8 @@
  * Simple error handler
  */
 
-export async function handleApiError(error: any): Promise<string> {
-    const msg = error?.message || String(error);
+export async function handleApiError(error: unknown): Promise<string> {
+    const msg = error instanceof Error ? error.message : String(error);
     console.error('[API Error]', msg);
 
     if (msg.includes('API key')) return 'Error: Invalid API key';

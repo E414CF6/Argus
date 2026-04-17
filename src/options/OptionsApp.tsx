@@ -2,7 +2,7 @@ import './OptionsApp.css';
 
 import React, {useCallback, useEffect, useState} from 'react';
 
-import {DEFAULT_SETTINGS} from '../services/state-manager';
+import {DEFAULT_SETTINGS, type ExtensionSettings} from '../services/state-manager';
 import {listModels, type ModelInfo} from '../services/gemini-adapter';
 import {getStorageValues, setStorageValues} from '../utils/chrome-helpers';
 
@@ -11,7 +11,7 @@ const DEFAULT_MODELS: ModelInfo[] = [{id: 'gemini-2.0-flash', name: 'Gemini 2.0 
 },];
 
 export default function OptionsApp() {
-    const [settings, setSettings] = useState<any>(DEFAULT_SETTINGS);
+    const [settings, setSettings] = useState<ExtensionSettings>(DEFAULT_SETTINGS);
     const [status, setStatus] = useState<{ message: string; type: string } | null>(null);
     const [models, setModels] = useState<ModelInfo[]>(DEFAULT_MODELS);
     const [loadingModels, setLoadingModels] = useState(false);
@@ -33,10 +33,10 @@ export default function OptionsApp() {
     }, []);
 
     useEffect(() => {
-        getStorageValues(DEFAULT_SETTINGS).then((items) => {
+        getStorageValues<ExtensionSettings>(DEFAULT_SETTINGS).then((items) => {
             setSettings(items);
             if (items.gemini_apiKey) {
-                fetchModels(items.gemini_apiKey as string);
+                void fetchModels(items.gemini_apiKey);
             }
         }).catch(err => {
             console.error(err);
@@ -54,13 +54,13 @@ export default function OptionsApp() {
             }
         }
 
-        setSettings((prev: any) => ({
+        setSettings((prev: ExtensionSettings) => ({
             ...prev, [name]: parsedValue
         }));
 
         // Fetch models when API key changes
-        if (name === 'gemini_apiKey' && value.length >= 30) {
-            fetchModels(value);
+        if (name === 'gemini_apiKey' && typeof value === 'string' && value.length >= 30) {
+            void fetchModels(value);
         }
     };
 
@@ -82,7 +82,7 @@ export default function OptionsApp() {
     const handleReset = () => {
         if (window.confirm('Reset to default settings? API key will be cleared.')) {
             setSettings(DEFAULT_SETTINGS);
-            setStorageValues(DEFAULT_SETTINGS);
+            setStorageValues(DEFAULT_SETTINGS).catch(console.error);
         }
     };
 
