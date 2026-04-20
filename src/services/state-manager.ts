@@ -23,15 +23,15 @@ const DEFAULT_PROMPT = "Solve the problems on this page and only provide the ans
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
     gemini_apiKey: '',
-    gemini_model: 'gemini-2.0-flash',
+    gemini_model: 'gemini-flash-latest',
     gemini_prompt: DEFAULT_PROMPT,
     gemini_timeout: 90,
-    style_fontSize: 13,
+    style_fontSize: 8,
     style_textColor: '#e8e8e8',
-    style_bgColor: '#1e1e1e',
-    style_bgOpacity: 95,
-    style_maxWidth: 400,
-    style_maxHeight: 300,
+    style_bgColor: '#ffffff',
+    style_bgOpacity: 4,
+    style_maxWidth: 128,
+    style_maxHeight: 48,
 };
 
 class StateManager {
