@@ -129,7 +129,7 @@ if (typeof window.argusInjected === 'undefined') {
                 box-sizing: border-box !important;
                 font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
                 margin: 0 !important;
-                padding: 6px 10px 10px 10px !important;
+                padding: 4px 8px 8px 8px !important;
                 display: flex !important;
                 flex-direction: column !important;
                 user-select: text !important;
@@ -142,12 +142,39 @@ if (typeof window.argusInjected === 'undefined') {
             }
             #${OVERLAY_ID} * {
                 box-sizing: border-box !important;
-                user-select: text !important;
-                -webkit-user-select: text !important;
             }
             #${OVERLAY_ID} ::selection {
                 background: rgba(99, 102, 241, 0.45) !important;
                 color: #ffffff !important;
+            }
+            #${OVERLAY_ID}-drag-bar {
+                height: 10px !important;
+                width: 100% !important;
+                cursor: grab !important;
+                flex-shrink: 0 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                user-select: none !important;
+                -webkit-user-select: none !important;
+                opacity: 0.25 !important;
+                transition: opacity 0.15s ease !important;
+                padding: 2px 0 !important;
+            }
+            #${OVERLAY_ID}:hover #${OVERLAY_ID}-drag-bar,
+            #${OVERLAY_ID}-drag-bar:hover {
+                opacity: 0.8 !important;
+            }
+            #${OVERLAY_ID}-drag-bar::after {
+                content: '' !important;
+                width: 28px !important;
+                height: 2px !important;
+                background-color: currentColor !important;
+                border-radius: 2px !important;
+                opacity: 0.6 !important;
+            }
+            #${OVERLAY_ID}-drag-bar:active {
+                cursor: grabbing !important;
             }
             #${OVERLAY_ID}-content {
                 user-select: text !important;
@@ -213,24 +240,12 @@ if (typeof window.argusInjected === 'undefined') {
         let origX = 0, origY = 0;
         let startWidth = 0, startHeight = 0;
 
-        // Isolate all selection & mouse events within the overlay from page scripts
-        const isolateEvents = ['selectstart', 'dragstart', 'copy', 'mousedown', 'mouseup'];
-        isolateEvents.forEach((eventName) => {
-            overlay.addEventListener(
-                eventName,
-                (e) => {
-                    // Prevent hostile page event listeners from capturing overlay events
-                    e.stopPropagation();
-                },
-                { capture: true }
-            );
-        });
-
         overlay.addEventListener('mousedown', (e) => {
             const resizer = document.getElementById(`${OVERLAY_ID}-resizer`);
+            const dragBar = document.getElementById(`${OVERLAY_ID}-drag-bar`);
             const rect = overlay.getBoundingClientRect();
 
-            // 1. Check if clicking on dedicated resize handle or bottom-right corner
+            // 1. Resize Handle (bottom-right)
             const isResizerClick = resizer && (resizer === e.target || resizer.contains(e.target as Node));
             const isCornerClick = e.clientX > rect.right - 18 && e.clientY > rect.bottom - 18;
 
@@ -247,24 +262,26 @@ if (typeof window.argusInjected === 'undefined') {
                 return;
             }
 
-            // 2. Check if user wants to move the overlay window
+            // 2. Drag & Reposition (Top drag bar, Alt/Shift/Meta key, or outer edges)
+            const isDragBar = dragBar && (dragBar === e.target || dragBar.contains(e.target as Node));
+            const isModifierPressed = e.altKey || e.shiftKey || e.metaKey || e.ctrlKey;
             const contentEl = document.getElementById(`${OVERLAY_ID}-content`);
-            const isAltOrMeta = e.altKey || e.metaKey;
-            const isPaddingClick = contentEl && (contentEl !== e.target && !contentEl.contains(e.target as Node));
+            const isOutsideText = contentEl && (contentEl !== e.target && !contentEl.contains(e.target as Node));
 
-            if (isAltOrMeta || isPaddingClick) {
+            if (isDragBar || isModifierPressed || isOutsideText) {
                 isDragging = true;
                 startX = e.clientX;
                 startY = e.clientY;
                 origX = overlay.offsetLeft;
                 origY = overlay.offsetTop;
+                document.body.style.cursor = 'grabbing';
                 e.preventDefault();
                 e.stopPropagation();
             }
             // Otherwise, native drag-to-select text works smoothly
         });
 
-        document.addEventListener('mousemove', (e) => {
+        window.addEventListener('mousemove', (e) => {
             if (isResizing) {
                 const newWidth = Math.max(120, Math.min(window.innerWidth - origX - 10, startWidth + (e.clientX - startX)));
                 const newHeight = Math.max(60, Math.min(window.innerHeight - origY - 10, startHeight + (e.clientY - startY)));
@@ -283,9 +300,9 @@ if (typeof window.argusInjected === 'undefined') {
                 overlay.style.left = `${newX}px`;
                 overlay.style.top = `${newY}px`;
             }
-        });
+        }, { capture: true });
 
-        document.addEventListener('mouseup', () => {
+        window.addEventListener('mouseup', () => {
             if (isResizing) {
                 isResizing = false;
                 const finalWidth = overlay.offsetWidth;
@@ -293,9 +310,10 @@ if (typeof window.argusInjected === 'undefined') {
                 void saveSize(finalWidth, finalHeight);
             } else if (isDragging) {
                 isDragging = false;
+                document.body.style.cursor = '';
                 void savePosition(overlay.offsetLeft, overlay.offsetTop);
             }
-        });
+        }, { capture: true });
     }
 
     async function showOverlay(text: string, status?: 'loading' | 'success' | 'error' | 'info'): Promise<void> {
@@ -335,8 +353,9 @@ if (typeof window.argusInjected === 'undefined') {
         overlay.style.zIndex = '2147483647';
         overlay.style.overflow = 'hidden';
 
-        // Minimalist Pure Layout with Resizer Hitbox
+        // Minimalist Layout: Slim top drag bar + Content + Resizer Hitbox
         overlay.innerHTML = `
+            <div id="${OVERLAY_ID}-drag-bar" title="Drag to move (or hold Alt/Shift to drag anywhere)"></div>
             <div id="${OVERLAY_ID}-content"></div>
             <div id="${OVERLAY_ID}-resizer" title="Drag corner to resize"></div>
         `;
