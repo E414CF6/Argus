@@ -70,7 +70,7 @@ if (typeof window.argusInjected === 'undefined') {
                 box-sizing: border-box;
                 font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
                 margin: 0;
-                padding: 6px 8px;
+                padding: 6px 10px 10px 10px;
                 display: flex;
                 flex-direction: column;
                 user-select: text;
@@ -78,6 +78,7 @@ if (typeof window.argusInjected === 'undefined') {
                 box-shadow: none;
                 border: none;
                 outline: none;
+                position: fixed;
             }
             #${OVERLAY_ID} * {
                 box-sizing: border-box;
@@ -106,6 +107,16 @@ if (typeof window.argusInjected === 'undefined') {
                 background: rgba(128, 128, 128, 0.2);
                 border-radius: 2px;
             }
+            #${OVERLAY_ID}-resizer {
+                position: absolute;
+                right: 0;
+                bottom: 0;
+                width: 18px;
+                height: 18px;
+                cursor: nwse-resize;
+                user-select: none;
+                z-index: 100;
+            }
             .argus-stealth-dot {
                 display: inline-block;
                 width: 4px;
@@ -129,25 +140,34 @@ if (typeof window.argusInjected === 'undefined') {
         let isResizing = false;
         let startX = 0, startY = 0;
         let origX = 0, origY = 0;
+        let startWidth = 0, startHeight = 0;
 
         overlay.addEventListener('mousedown', (e) => {
+            const resizer = document.getElementById(`${OVERLAY_ID}-resizer`);
             const rect = overlay.getBoundingClientRect();
-            // Check if click is near bottom-right corner for resize handle
-            if (e.clientX > rect.right - 14 && e.clientY > rect.bottom - 14) {
+
+            // 1. Check if clicking on dedicated resize handle or bottom-right corner
+            const isResizerClick = resizer && (resizer === e.target || resizer.contains(e.target as Node));
+            const isCornerClick = e.clientX > rect.right - 18 && e.clientY > rect.bottom - 18;
+
+            if (isResizerClick || isCornerClick) {
                 isResizing = true;
-                overlay.style.width = `${overlay.offsetWidth}px`;
-                overlay.style.height = `${overlay.offsetHeight}px`;
-                overlay.style.maxWidth = '100vw';
-                overlay.style.maxHeight = '100vh';
+                startX = e.clientX;
+                startY = e.clientY;
+                origX = overlay.offsetLeft;
+                origY = overlay.offsetTop;
+                startWidth = overlay.offsetWidth;
+                startHeight = overlay.offsetHeight;
                 e.preventDefault();
+                e.stopPropagation();
                 return;
             }
 
+            // 2. Check if user wants to move the overlay window
             const contentEl = document.getElementById(`${OVERLAY_ID}-content`);
             const isAltOrMeta = e.altKey || e.metaKey;
             const isPaddingClick = contentEl && (contentEl !== e.target && !contentEl.contains(e.target as Node));
 
-            // Drag window if Alt is pressed or clicking the outer container padding
             if (isAltOrMeta || isPaddingClick) {
                 isDragging = true;
                 startX = e.clientX;
@@ -156,29 +176,36 @@ if (typeof window.argusInjected === 'undefined') {
                 origY = overlay.offsetTop;
                 e.preventDefault();
             }
-            // Otherwise, native drag-to-select text works without any interference
+            // Otherwise, native drag-to-select text works smoothly
         });
 
         document.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
-            const dx = e.clientX - startX;
-            const dy = e.clientY - startY;
-            const newX = Math.max(0, Math.min(window.innerWidth - overlay.offsetWidth, origX + dx));
-            const newY = Math.max(0, Math.min(window.innerHeight - overlay.offsetHeight, origY + dy));
-            overlay.style.left = `${newX}px`;
-            overlay.style.top = `${newY}px`;
+            if (isResizing) {
+                const newWidth = Math.max(120, Math.min(window.innerWidth - origX - 10, startWidth + (e.clientX - startX)));
+                const newHeight = Math.max(60, Math.min(window.innerHeight - origY - 10, startHeight + (e.clientY - startY)));
+                overlay.style.width = `${newWidth}px`;
+                overlay.style.height = `${newHeight}px`;
+                overlay.style.maxWidth = `${newWidth}px`;
+                overlay.style.maxHeight = `${newHeight}px`;
+                return;
+            }
+
+            if (isDragging) {
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                const newX = Math.max(0, Math.min(window.innerWidth - overlay.offsetWidth, origX + dx));
+                const newY = Math.max(0, Math.min(window.innerHeight - overlay.offsetHeight, origY + dy));
+                overlay.style.left = `${newX}px`;
+                overlay.style.top = `${newY}px`;
+            }
         });
 
         document.addEventListener('mouseup', () => {
             if (isResizing) {
                 isResizing = false;
-                const newWidth = overlay.offsetWidth;
-                const newHeight = overlay.offsetHeight;
-                overlay.style.width = '';
-                overlay.style.height = '';
-                overlay.style.maxWidth = `${newWidth}px`;
-                overlay.style.maxHeight = `${newHeight}px`;
-                void saveSize(newWidth, newHeight);
+                const finalWidth = overlay.offsetWidth;
+                const finalHeight = overlay.offsetHeight;
+                void saveSize(finalWidth, finalHeight);
             } else if (isDragging) {
                 isDragging = false;
                 void savePosition(overlay.offsetLeft, overlay.offsetTop);
@@ -207,10 +234,10 @@ if (typeof window.argusInjected === 'undefined') {
         const posX = s.overlay_x >= 0 ? Math.min(s.overlay_x, window.innerWidth - 40) : defaultX;
         const posY = s.overlay_y >= 0 ? Math.min(s.overlay_y, window.innerHeight - 40) : defaultY;
 
-        overlay.style.position = 'fixed';
         overlay.style.left = `${posX}px`;
         overlay.style.top = `${posY}px`;
         overlay.style.width = `${s.style_maxWidth}px`;
+        overlay.style.height = `${s.style_maxHeight}px`;
         overlay.style.maxWidth = `${s.style_maxWidth}px`;
         overlay.style.maxHeight = `${s.style_maxHeight}px`;
         overlay.style.background = hexToRgba(s.style_bgColor, s.style_bgOpacity);
@@ -221,11 +248,13 @@ if (typeof window.argusInjected === 'undefined') {
         overlay.style.border = 'none';
         overlay.style.backdropFilter = 'none';
         overlay.style.zIndex = '2147483647';
-        overlay.style.resize = 'both';
         overlay.style.overflow = 'hidden';
 
-        // Pure Minimalist Text Layout (No copy/x buttons, no hover highlight)
-        overlay.innerHTML = `<div id="${OVERLAY_ID}-content"></div>`;
+        // Minimalist Pure Layout with Resizer Hitbox
+        overlay.innerHTML = `
+            <div id="${OVERLAY_ID}-content"></div>
+            <div id="${OVERLAY_ID}-resizer" title="Drag corner to resize"></div>
+        `;
 
         const contentEl = document.getElementById(`${OVERLAY_ID}-content`)!;
 
