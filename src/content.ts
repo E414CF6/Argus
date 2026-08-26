@@ -5,6 +5,7 @@ if (typeof window.argusInjected === 'undefined') {
     window.argusInjected = true;
 
     const OVERLAY_ID = 'argus-overlay';
+    const UNBLOCK_STYLE_ID = 'argus-unblock-drag-style';
     let currentSettings: ExtensionSettings = { ...DEFAULT_SETTINGS };
 
     function hexToRgba(hex: string, opacity: number): string {
@@ -20,6 +21,7 @@ if (typeof window.argusInjected === 'undefined') {
         try {
             const data = await chrome.storage.local.get(DEFAULT_SETTINGS as unknown as { [key: string]: unknown });
             currentSettings = (data as unknown as ExtensionSettings) || DEFAULT_SETTINGS;
+            applyPageDragUnblocker(currentSettings.unblock_drag);
             return currentSettings;
         } catch {
             return DEFAULT_SETTINGS;
@@ -37,6 +39,63 @@ if (typeof window.argusInjected === 'undefined') {
         currentSettings.style_maxHeight = height;
         await chrome.storage.local.set({ style_maxWidth: width, style_maxHeight: height });
     }
+
+    /**
+     * Unblocks drag, selection, and copy restrictions enforced by host web pages.
+     */
+    function applyPageDragUnblocker(enable = true): void {
+        if (!enable) {
+            const existingStyle = document.getElementById(UNBLOCK_STYLE_ID);
+            if (existingStyle) existingStyle.remove();
+            return;
+        }
+
+        // 1. Inject global CSS override to force user-select
+        if (!document.getElementById(UNBLOCK_STYLE_ID)) {
+            const style = document.createElement('style');
+            style.id = UNBLOCK_STYLE_ID;
+            style.textContent = `
+                html, body, div, p, span, h1, h2, h3, h4, h5, h6, table, tr, td, th, li, code, pre, main, section, article {
+                    -webkit-user-select: text !important;
+                    -moz-user-select: text !important;
+                    -ms-user-select: text !important;
+                    user-select: text !important;
+                }
+            `;
+            (document.head || document.documentElement).appendChild(style);
+        }
+
+        // 2. Clear inline event handler blockers on document and body
+        try {
+            document.onselectstart = null;
+            document.ondragstart = null;
+            document.oncontextmenu = null;
+            document.oncopy = null;
+            if (document.body) {
+                document.body.onselectstart = null;
+                document.body.ondragstart = null;
+                document.body.oncontextmenu = null;
+                document.body.oncopy = null;
+            }
+        } catch {
+            // Ignore restricted context errors
+        }
+    }
+
+    // Intercept capturing event blockers to allow drag and copy everywhere
+    const unblockEvents = ['selectstart', 'dragstart', 'copy', 'contextmenu'];
+    unblockEvents.forEach((eventType) => {
+        window.addEventListener(
+            eventType,
+            (e) => {
+                if (currentSettings.unblock_drag) {
+                    // Prevent page scripts from canceling native drag/selection
+                    e.stopPropagation();
+                }
+            },
+            true // Capture phase to intercept before page listener
+        );
+    });
 
     function formatTextToHtml(raw: string): string {
         const escaped = raw
@@ -67,72 +126,77 @@ if (typeof window.argusInjected === 'undefined') {
         style.id = `${OVERLAY_ID}-style`;
         style.textContent = `
             #${OVERLAY_ID} {
-                box-sizing: border-box;
-                font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                margin: 0;
-                padding: 6px 10px 10px 10px;
-                display: flex;
-                flex-direction: column;
-                user-select: text;
-                -webkit-user-select: text;
-                box-shadow: none;
-                border: none;
-                outline: none;
-                position: fixed;
+                box-sizing: border-box !important;
+                font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+                margin: 0 !important;
+                padding: 6px 10px 10px 10px !important;
+                display: flex !important;
+                flex-direction: column !important;
+                user-select: text !important;
+                -webkit-user-select: text !important;
+                box-shadow: none !important;
+                border: none !important;
+                outline: none !important;
+                position: fixed !important;
+                pointer-events: auto !important;
             }
             #${OVERLAY_ID} * {
-                box-sizing: border-box;
+                box-sizing: border-box !important;
+                user-select: text !important;
+                -webkit-user-select: text !important;
             }
             #${OVERLAY_ID} ::selection {
-                background: rgba(99, 102, 241, 0.45);
-                color: #ffffff;
+                background: rgba(99, 102, 241, 0.45) !important;
+                color: #ffffff !important;
             }
             #${OVERLAY_ID}-content {
-                user-select: text;
-                -webkit-user-select: text;
-                cursor: text;
-                white-space: pre-wrap;
-                word-break: break-word;
-                line-height: 1.4;
-                overflow-y: auto;
-                flex: 1;
-                min-height: 0;
-                scrollbar-width: thin;
-                scrollbar-color: rgba(128, 128, 128, 0.15) transparent;
+                user-select: text !important;
+                -webkit-user-select: text !important;
+                cursor: text !important;
+                white-space: pre-wrap !important;
+                word-break: break-word !important;
+                line-height: 1.4 !important;
+                overflow-y: auto !important;
+                flex: 1 !important;
+                min-height: 0 !important;
+                scrollbar-width: thin !important;
+                scrollbar-color: rgba(128, 128, 128, 0.15) transparent !important;
+                pointer-events: auto !important;
             }
             #${OVERLAY_ID}-content::-webkit-scrollbar {
-                width: 3px;
+                width: 3px !important;
             }
             #${OVERLAY_ID}-content::-webkit-scrollbar-thumb {
-                background: rgba(128, 128, 128, 0.2);
-                border-radius: 2px;
+                background: rgba(128, 128, 128, 0.2) !important;
+                border-radius: 2px !important;
             }
             #${OVERLAY_ID}-resizer {
-                position: absolute;
-                right: 0;
-                bottom: 0;
-                width: 18px;
-                height: 18px;
-                cursor: nwse-resize;
-                user-select: none;
-                z-index: 100;
+                position: absolute !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                width: 18px !important;
+                height: 18px !important;
+                cursor: nwse-resize !important;
+                user-select: none !important;
+                -webkit-user-select: none !important;
+                z-index: 100 !important;
             }
             .argus-stealth-dot {
-                display: inline-block;
-                width: 4px;
-                height: 4px;
-                background-color: currentColor;
-                border-radius: 50%;
-                opacity: 0.4;
-                animation: argus-pulse 1.2s infinite ease-in-out;
-                margin-right: 4px;
+                display: inline-block !important;
+                width: 4px !important;
+                height: 4px !important;
+                background-color: currentColor !important;
+                border-radius: 50% !important;
+                opacity: 0.4 !important;
+                animation: argus-pulse 1.2s infinite ease-in-out !important;
+                margin-right: 4px !important;
             }
             @keyframes argus-pulse {
                 0%, 100% { opacity: 0.1; }
                 50% { opacity: 0.6; }
             }
         `;
-        document.head.appendChild(style);
+        (document.head || document.documentElement).appendChild(style);
     }
 
     function makeDraggable(overlay: HTMLElement): void {
@@ -141,6 +205,19 @@ if (typeof window.argusInjected === 'undefined') {
         let startX = 0, startY = 0;
         let origX = 0, origY = 0;
         let startWidth = 0, startHeight = 0;
+
+        // Isolate all selection & mouse events within the overlay from page scripts
+        const isolateEvents = ['selectstart', 'dragstart', 'copy', 'mousedown', 'mouseup'];
+        isolateEvents.forEach((eventName) => {
+            overlay.addEventListener(
+                eventName,
+                (e) => {
+                    // Prevent hostile page event listeners from capturing overlay events
+                    e.stopPropagation();
+                },
+                { capture: true }
+            );
+        });
 
         overlay.addEventListener('mousedown', (e) => {
             const resizer = document.getElementById(`${OVERLAY_ID}-resizer`);
@@ -175,6 +252,7 @@ if (typeof window.argusInjected === 'undefined') {
                 origX = overlay.offsetLeft;
                 origY = overlay.offsetTop;
                 e.preventDefault();
+                e.stopPropagation();
             }
             // Otherwise, native drag-to-select text works smoothly
         });
@@ -319,6 +397,10 @@ if (typeof window.argusInjected === 'undefined') {
     // Live Settings Update
     chrome.storage.onChanged.addListener((changes, namespace) => {
         if (namespace === 'local') {
+            if (changes.unblock_drag) {
+                applyPageDragUnblocker(Boolean(changes.unblock_drag.newValue));
+            }
+
             const overlay = document.getElementById(OVERLAY_ID);
             if (overlay && overlay.style.display !== 'none') {
                 const styleKeys = [
@@ -340,4 +422,7 @@ if (typeof window.argusInjected === 'undefined') {
             }
         }
     });
+
+    // Initial load
+    void loadSettings();
 }

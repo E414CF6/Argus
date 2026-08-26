@@ -5,6 +5,7 @@ export interface ExtensionSettings {
     gemini_timeout: number;
     // Stealth & Appearance
     stealth_mode: boolean;
+    unblock_drag: boolean;
     style_fontSize: number;
     style_textColor: string;
     style_bgColor: string;
@@ -162,6 +163,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
     gemini_timeout: 90,
     // Stealth & Camouflage defaults: 0% transparent background, minimal font
     stealth_mode: true,
+    unblock_drag: true,
     style_fontSize: 11,
     style_textColor: '#a3a3a3',
     style_bgColor: '#000000',

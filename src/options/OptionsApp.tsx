@@ -235,6 +235,22 @@ export default function OptionsApp() {
                                 <li><strong>Dismiss</strong>: Press <kbd>Esc</kbd> or <kbd>Cmd/Ctrl+Shift+D</kbd> to hide instantly.</li>
                             </ul>
                         </div>
+
+                        <div className="form-group checkbox-group" style={{ marginTop: '20px' }}>
+                            <label htmlFor="unblock_drag" className="checkbox-label">
+                                <input
+                                    type="checkbox"
+                                    id="unblock_drag"
+                                    name="unblock_drag"
+                                    checked={settings.unblock_drag}
+                                    onChange={handleChange}
+                                />
+                                <div>
+                                    <strong>🔓 Unblock Drag & Copy on Protected Pages</strong>
+                                    <small>Force-enables text selection, drag-and-drop, and copying on websites that disable them (e.g. online exams, secure test portals, copy-protected documents).</small>
+                                </div>
+                            </label>
+                        </div>
                     </section>
 
                     <section className="panel">
