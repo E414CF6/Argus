@@ -172,14 +172,21 @@ if (typeof window.argusInjected === 'undefined') {
             }
             #${OVERLAY_ID}-resizer {
                 position: absolute !important;
-                right: 0 !important;
-                bottom: 0 !important;
-                width: 18px !important;
-                height: 18px !important;
+                right: 1px !important;
+                bottom: 1px !important;
+                width: 14px !important;
+                height: 14px !important;
                 cursor: nwse-resize !important;
                 user-select: none !important;
                 -webkit-user-select: none !important;
                 z-index: 100 !important;
+                background: linear-gradient(135deg, transparent 0%, transparent 40%, currentColor 40%, currentColor 50%, transparent 50%, transparent 68%, currentColor 68%, currentColor 78%, transparent 78%, transparent 100%) !important;
+                opacity: 0.35 !important;
+                transition: opacity 0.15s ease !important;
+            }
+            #${OVERLAY_ID}:hover #${OVERLAY_ID}-resizer,
+            #${OVERLAY_ID}-resizer:hover {
+                opacity: 0.85 !important;
             }
             .argus-stealth-dot {
                 display: inline-block !important;
