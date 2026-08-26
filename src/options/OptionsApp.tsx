@@ -1,18 +1,18 @@
 import './OptionsApp.css';
 
-import React, {useCallback, useEffect, useState} from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     DEFAULT_SETTINGS,
-    type ExtensionSettings,
     FALLBACK_MODELS,
     PROMPT_PRESETS,
-    type PromptPreset,
     STEALTH_THEMES,
+    type ExtensionSettings,
+    type PromptPreset,
     type StealthThemePreset
 } from '../types/settings';
-import {listModels, type ModelInfo, testApiKey} from '../services/gemini-adapter';
-import {storageService} from '../services/storage-service';
-import {getStorageValues, setStorageValues} from '../utils/chrome-helpers';
+import { listModels, testApiKey, type ModelInfo } from '../services/gemini-adapter';
+import { storageService } from '../services/storage-service';
+import { getStorageValues, setStorageValues } from '../utils/chrome-helpers';
 
 export default function OptionsApp() {
     const [settings, setSettings] = useState<ExtensionSettings>(DEFAULT_SETTINGS);
@@ -64,12 +64,12 @@ export default function OptionsApp() {
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
     ) => {
-        const {name, value, type} = e.target;
+        const { name, value, type } = e.target;
         let parsedValue: string | number | boolean = value;
 
         if (type === 'checkbox') {
             parsedValue = (e.target as HTMLInputElement).checked;
-        } else if (type === 'number') {
+        } else if (type === 'number' || type === 'range') {
             const num = Number(value);
             if (!isNaN(num) && isFinite(num)) {
                 parsedValue = num;
@@ -99,7 +99,7 @@ export default function OptionsApp() {
             ...prev,
             ...theme.settings
         }));
-        showStatusMessage(`Applied stealth theme: ${theme.name}`, 'success');
+        showStatusMessage(`Applied theme: ${theme.name}`, 'success');
     };
 
     const handleTestKey = async () => {
@@ -157,7 +157,7 @@ export default function OptionsApp() {
     };
 
     const showStatusMessage = (message: string, type: 'success' | 'error' | 'info') => {
-        setStatus({message, type});
+        setStatus({ message, type });
         setTimeout(() => setStatus(null), 3000);
     };
 
@@ -166,7 +166,8 @@ export default function OptionsApp() {
     const r = parseInt(cleanHex.slice(0, 2), 16) || 0;
     const g = parseInt(cleanHex.slice(2, 4), 16) || 0;
     const b = parseInt(cleanHex.slice(4, 6), 16) || 0;
-    const previewBg = `rgba(${r}, ${g}, ${b}, ${settings.style_bgOpacity / 100})`;
+    const alpha = Math.max(0, Math.min(1, settings.style_bgOpacity / 100));
+    const previewBg = `rgba(${r}, ${g}, ${b}, ${alpha})`;
 
     return (
         <div className="page">
@@ -179,7 +180,7 @@ export default function OptionsApp() {
                         className={`tab-btn ${activeTab === 'stealth' ? 'active' : ''}`}
                         onClick={() => setActiveTab('stealth')}
                     >
-                        👻 Stealth & Appearance
+                        👻 Stealth & Invisibility
                     </button>
                     <button
                         className={`tab-btn ${activeTab === 'api' ? 'active' : ''}`}
@@ -202,13 +203,13 @@ export default function OptionsApp() {
                 </div>
             </header>
 
-            {/* TAB 1: STEALTH & CAMOUFLAGE (MAIN) */}
+            {/* TAB 1: STEALTH & INVISIBILITY (MAIN) */}
             {activeTab === 'stealth' && (
                 <div className="panels-container">
                     <section className="panel">
                         <h2>Stealth & Camouflage Presets</h2>
                         <p className="section-desc">
-                            Select an invisibility profile tailored to your display environment.
+                            Pure minimalist text overlay. No buttons, no highlights on hover, completely quiet.
                         </p>
 
                         <div className="stealth-themes-grid">
@@ -226,64 +227,32 @@ export default function OptionsApp() {
                             ))}
                         </div>
 
-                        <h2 style={{marginTop: '24px'}}>Stealth Behaviors</h2>
-
-                        <div className="form-group checkbox-group">
-                            <label htmlFor="stealth_mode" className="checkbox-label">
-                                <input
-                                    type="checkbox"
-                                    id="stealth_mode"
-                                    name="stealth_mode"
-                                    checked={settings.stealth_mode}
-                                    onChange={handleChange}
-                                />
-                                <div>
-                                    <strong>Stealth Mode (Invisibility)</strong>
-                                    <small>Removes headers, borders, and heavy shadows. Shows clean, inconspicuous
-                                        text.</small>
-                                </div>
-                            </label>
-                        </div>
-
-                        <div className="form-group checkbox-group">
-                            <label htmlFor="stealth_hoverOnly" className="checkbox-label">
-                                <input
-                                    type="checkbox"
-                                    id="stealth_hoverOnly"
-                                    name="stealth_hoverOnly"
-                                    checked={settings.stealth_hoverOnly}
-                                    onChange={handleChange}
-                                />
-                                <div>
-                                    <strong>Hover-Only Reveal</strong>
-                                    <small>Nearly invisible (18% opacity) until you hover your mouse directly over
-                                        it.</small>
-                                </div>
-                            </label>
+                        <div className="stealth-info-box">
+                            <strong>💡 How Stealth Overlay Works:</strong>
+                            <ul>
+                                <li><strong>Text Selection</strong>: Click and drag over text directly to select and copy.</li>
+                                <li><strong>Reposition</strong>: Hold <kbd>Alt</kbd> (or <kbd>Option</kbd>) and drag anywhere to move.</li>
+                                <li><strong>Dismiss</strong>: Press <kbd>Esc</kbd> or <kbd>Cmd/Ctrl+Shift+D</kbd> to hide instantly.</li>
+                            </ul>
                         </div>
                     </section>
 
                     <section className="panel">
-                        <h2>Fine-Tune Overlay Appearance</h2>
+                        <h2>Fine-Tune Invisibility</h2>
 
                         <div className="preview-container">
-                            <span className="preview-tag">Live Stealth Preview</span>
+                            <span className="preview-tag">Simulated Screen Background</span>
                             <div
-                                className={`stealth-live-preview ${settings.stealth_hoverOnly ? 'preview-hover-stealth' : ''}`}
+                                className="stealth-live-preview"
                                 style={{
                                     background: previewBg,
                                     color: settings.style_textColor,
                                     fontSize: `${settings.style_fontSize}px`,
-                                    border: settings.stealth_mode ? 'none' : '1px solid rgba(255,255,255,0.1)',
-                                    borderRadius: settings.stealth_mode ? '4px' : '8px',
-                                    boxShadow: settings.stealth_mode ? 'none' : '0 4px 16px rgba(0,0,0,0.3)',
                                 }}
                             >
-                                <div style={{opacity: 0.9}}>
-                                    1. Q: (2x + 5 = 15) → <strong>x = 5</strong><br/>
-                                    2. Answer: Option (C)<br/>
-                                    3. Result verified.
-                                </div>
+                                1. Q: (2x + 5 = 15) → <strong>x = 5</strong><br />
+                                2. Answer: Option (C)<br />
+                                3. Result verified.
                             </div>
                         </div>
 
@@ -293,18 +262,19 @@ export default function OptionsApp() {
                                 <div className="input-with-suffix">
                                     <input
                                         type="range"
-                                        id="style_bgOpacity_slider"
+                                        id="style_bgOpacity"
                                         name="style_bgOpacity"
                                         value={settings.style_bgOpacity}
                                         onChange={handleChange}
-                                        min="10"
+                                        min="0"
                                         max="100"
-                                        style={{flex: 1}}
+                                        style={{ flex: 1 }}
                                     />
-                                    <span className="suffix"
-                                          style={{minWidth: '42px'}}>{settings.style_bgOpacity}%</span>
+                                    <span className="suffix" style={{ minWidth: '48px', fontWeight: 600 }}>
+                                        {settings.style_bgOpacity === 0 ? '0% (None)' : `${settings.style_bgOpacity}%`}
+                                    </span>
                                 </div>
-                                <small>Lower opacity blends the overlay naturally into the webpage</small>
+                                <small>Set to 0% for 100% transparent background (floating text only)</small>
                             </div>
                         </div>
 
@@ -323,7 +293,7 @@ export default function OptionsApp() {
                                     />
                                     <span className="suffix">px</span>
                                 </div>
-                                <small>Smaller font sizes (10-12px) are less noticeable</small>
+                                <small>Small font sizes (10-12px) attract minimal attention</small>
                             </div>
                         </div>
 
@@ -340,6 +310,7 @@ export default function OptionsApp() {
                                     />
                                     <span className="color-value">{settings.style_textColor}</span>
                                 </div>
+                                <small>Use low-contrast gray (e.g., #888888 or #52525b) for stealth</small>
                             </div>
                         </div>
 
@@ -353,8 +324,11 @@ export default function OptionsApp() {
                                         name="style_bgColor"
                                         value={settings.style_bgColor}
                                         onChange={handleChange}
+                                        disabled={settings.style_bgOpacity === 0}
                                     />
-                                    <span className="color-value">{settings.style_bgColor}</span>
+                                    <span className="color-value">
+                                        {settings.style_bgOpacity === 0 ? 'Transparent' : settings.style_bgColor}
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -369,7 +343,7 @@ export default function OptionsApp() {
                                         name="style_maxWidth"
                                         value={settings.style_maxWidth}
                                         onChange={handleChange}
-                                        min="180"
+                                        min="150"
                                         max="1000"
                                         placeholder="W"
                                     />
@@ -380,7 +354,7 @@ export default function OptionsApp() {
                                         name="style_maxHeight"
                                         value={settings.style_maxHeight}
                                         onChange={handleChange}
-                                        min="120"
+                                        min="100"
                                         max="1000"
                                         placeholder="H"
                                     />
@@ -510,8 +484,7 @@ export default function OptionsApp() {
                 <div className="panel full-width-panel">
                     <h2>Keyboard Shortcuts Guide</h2>
                     <p className="section-desc">
-                        Argus is built to be fast, quiet, and keyboard-first. Use these key combinations anywhere on web
-                        pages.
+                        Argus is built to be fast, quiet, and keyboard-first. Use these key combinations anywhere on web pages.
                     </p>
 
                     <div className="shortcuts-table">
@@ -557,7 +530,7 @@ export default function OptionsApp() {
                             </div>
                             <div className="shortcut-info">
                                 <strong>Dismiss Overlay</strong>
-                                <span>Instantly dismisses the overlay window.</span>
+                                <span>Instantly dismisses the overlay window without touching anything else.</span>
                             </div>
                         </div>
                     </div>
@@ -571,7 +544,7 @@ export default function OptionsApp() {
                             className="secondary-link"
                             onClick={(e) => {
                                 e.preventDefault();
-                                chrome.tabs.create({url: 'chrome://extensions/shortcuts'});
+                                chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
                             }}
                         >
                             Open Chrome Shortcuts Manager →
@@ -585,8 +558,7 @@ export default function OptionsApp() {
                 <div className="panel full-width-panel">
                     <h2>Storage & History</h2>
                     <p className="section-desc">
-                        Argus saves conversation sessions and responses locally in IndexedDB on your browser for
-                        privacy.
+                        Argus saves conversation sessions and responses locally in IndexedDB on your browser for privacy.
                     </p>
 
                     <div className="storage-stats">
