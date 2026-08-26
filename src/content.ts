@@ -41,7 +41,7 @@ if (typeof window.argusInjected === 'undefined') {
     }
 
     /**
-     * Unblocks drag, selection, and copy restrictions enforced by host web pages.
+     * Complete Unblock Engine for copy-protected, drag-disabled, and contextmenu-locked web pages.
      */
     function applyPageDragUnblocker(enable = true): void {
         if (!enable) {
@@ -50,52 +50,114 @@ if (typeof window.argusInjected === 'undefined') {
             return;
         }
 
-        // 1. Inject global CSS override to force user-select
-        if (!document.getElementById(UNBLOCK_STYLE_ID)) {
-            const style = document.createElement('style');
+        // 1. Force selectable CSS on all elements
+        let style = document.getElementById(UNBLOCK_STYLE_ID) as HTMLStyleElement | null;
+        if (!style) {
+            style = document.createElement('style');
             style.id = UNBLOCK_STYLE_ID;
-            style.textContent = `
-                html, body, div, p, span, h1, h2, h3, h4, h5, h6, table, tr, td, th, li, code, pre, main, section, article {
-                    -webkit-user-select: text !important;
-                    -moz-user-select: text !important;
-                    -ms-user-select: text !important;
-                    user-select: text !important;
-                }
-            `;
             (document.head || document.documentElement).appendChild(style);
         }
+        style.textContent = `
+            *, *::before, *::after {
+                -webkit-user-select: text !important;
+                -moz-user-select: text !important;
+                -ms-user-select: text !important;
+                user-select: text !important;
+                -webkit-touch-callout: default !important;
+            }
+        `;
 
-        // 2. Clear inline event handler blockers on document and body
+        // 2. Clear inline event handler blockers
         try {
             document.onselectstart = null;
             document.ondragstart = null;
             document.oncontextmenu = null;
             document.oncopy = null;
+            document.oncut = null;
+            window.oncontextmenu = null;
+            window.oncopy = null;
+            window.onselectstart = null;
             if (document.body) {
                 document.body.onselectstart = null;
                 document.body.ondragstart = null;
                 document.body.oncontextmenu = null;
                 document.body.oncopy = null;
+                document.body.oncut = null;
             }
         } catch {
-            // Ignore restricted context errors
+            // Ignore restricted context
         }
     }
 
-    // Intercept capturing event blockers to allow drag and copy everywhere
-    const unblockEvents = ['selectstart', 'dragstart', 'copy', 'contextmenu'];
-    unblockEvents.forEach((eventType) => {
-        window.addEventListener(
-            eventType,
-            (e) => {
-                if (currentSettings.unblock_drag) {
-                    // Prevent page scripts from canceling native drag/selection
-                    e.stopPropagation();
+    // 3. Intercept and neutralize anti-copy / anti-drag capturing event listeners
+    window.addEventListener(
+        'selectstart',
+        (e) => {
+            if (currentSettings.unblock_drag) {
+                // Prevent hostile page script from blocking text selection start
+                e.stopImmediatePropagation();
+            }
+        },
+        true
+    );
+
+    window.addEventListener(
+        'dragstart',
+        (e) => {
+            if (currentSettings.unblock_drag) {
+                e.stopImmediatePropagation();
+            }
+        },
+        true
+    );
+
+    window.addEventListener(
+        'contextmenu',
+        (e) => {
+            if (currentSettings.unblock_drag) {
+                // Prevent hostile page script from canceling right-click context menu
+                e.stopImmediatePropagation();
+            }
+        },
+        true
+    );
+
+    // 4. Guaranteed Copy Handler: Ensure selected text is written to clipboard directly
+    window.addEventListener(
+        'copy',
+        (e) => {
+            if (!currentSettings.unblock_drag) return;
+
+            const selectedText = window.getSelection()?.toString();
+            if (selectedText && selectedText.length > 0) {
+                // Stop page scripts from overriding clipboard data with empty string or calling preventDefault()
+                e.stopImmediatePropagation();
+                if (e.clipboardData) {
+                    e.clipboardData.setData('text/plain', selectedText);
+                    e.preventDefault();
                 }
-            },
-            true // Capture phase to intercept before page listener
-        );
-    });
+            }
+        },
+        true
+    );
+
+    // 5. Fallback Keyboard Copy Interceptor (Cmd+C / Ctrl+C)
+    window.addEventListener(
+        'keydown',
+        (e) => {
+            if (!currentSettings.unblock_drag) return;
+
+            const isCopyKey = (e.metaKey || e.ctrlKey) && (e.key === 'c' || e.key === 'C');
+            if (isCopyKey) {
+                const selectedText = window.getSelection()?.toString();
+                if (selectedText && selectedText.length > 0) {
+                    // Try writing to clipboard directly in case page cancels the copy event
+                    navigator.clipboard?.writeText(selectedText).catch(() => {});
+                }
+            }
+        },
+        true
+    );
 
     function formatTextToHtml(raw: string): string {
         const escaped = raw
