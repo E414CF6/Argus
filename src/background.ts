@@ -4,7 +4,7 @@ import {captureVisibleTab} from './services/capture-service';
 import {stateManager} from './services/state-manager';
 import {sessionManager} from './services/session-manager';
 import {queryWithContext} from './services/session-context';
-import {MessageFactory} from './types/messages';
+import {type ChromeMessage, MessageFactory} from './types/messages';
 
 import contentScriptPath from './content?script';
 
@@ -27,6 +27,26 @@ chrome.commands.onCommand.addListener(async (command) => {
     } catch (error) {
         console.error('[Argus] Command execution failed:', error);
     }
+});
+
+// Handle direct message requests from content scripts (instant keyboard shortcut interception)
+chrome.runtime.onMessage.addListener((message: ChromeMessage, _sender, sendResponse) => {
+    if (message.type === 'REQUEST_CAPTURE') {
+        void handleCaptureAndQuery();
+        sendResponse({status: 'ok'});
+        return false;
+    }
+    if (message.type === 'REQUEST_TOGGLE_OVERLAY') {
+        void handleToggleOverlay();
+        sendResponse({status: 'ok'});
+        return false;
+    }
+    if (message.type === 'REQUEST_NEW_SESSION') {
+        void handleNewSession();
+        sendResponse({status: 'ok'});
+        return false;
+    }
+    return false;
 });
 
 // Handle extension icon click

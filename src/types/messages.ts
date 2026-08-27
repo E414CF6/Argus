@@ -2,7 +2,15 @@
  * Message types for background/content script communication
  */
 
-export type MessageType = 'displayResult' | 'toggleOverlay' | 'error' | 'clearOverlay';
+export type MessageType =
+    | 'displayResult'
+    | 'toggleOverlay'
+    | 'error'
+    | 'clearOverlay'
+    | 'REQUEST_CAPTURE'
+    | 'REQUEST_TOGGLE_OVERLAY'
+    | 'REQUEST_NEW_SESSION'
+    | 'PING';
 
 export interface DisplayResultMessage {
     type: 'displayResult';
@@ -23,6 +31,18 @@ export interface ClearOverlayMessage {
     type: 'clearOverlay';
 }
 
+export interface RequestCaptureMessage {
+    type: 'REQUEST_CAPTURE';
+}
+
+export interface RequestToggleOverlayMessage {
+    type: 'REQUEST_TOGGLE_OVERLAY';
+}
+
+export interface RequestNewSessionMessage {
+    type: 'REQUEST_NEW_SESSION';
+}
+
 export interface PingMessage {
     type: 'PING';
 }
@@ -32,6 +52,9 @@ export type ChromeMessage =
     | ToggleOverlayMessage
     | ErrorMessage
     | ClearOverlayMessage
+    | RequestCaptureMessage
+    | RequestToggleOverlayMessage
+    | RequestNewSessionMessage
     | PingMessage;
 
 export const MessageFactory = {
@@ -42,4 +65,7 @@ export const MessageFactory = {
     error: (error: string): ErrorMessage => ({type: 'error', error}),
     clearOverlay: (): ClearOverlayMessage => ({type: 'clearOverlay'}),
     ping: (): PingMessage => ({type: 'PING'}),
+    requestCapture: (): RequestCaptureMessage => ({type: 'REQUEST_CAPTURE'}),
+    requestToggleOverlay: (): RequestToggleOverlayMessage => ({type: 'REQUEST_TOGGLE_OVERLAY'}),
+    requestNewSession: (): RequestNewSessionMessage => ({type: 'REQUEST_NEW_SESSION'}),
 };

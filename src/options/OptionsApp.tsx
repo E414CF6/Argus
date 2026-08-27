@@ -1,18 +1,18 @@
 import './OptionsApp.css';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {
     DEFAULT_SETTINGS,
+    type ExtensionSettings,
     FALLBACK_MODELS,
     PROMPT_PRESETS,
-    STEALTH_THEMES,
-    type ExtensionSettings,
     type PromptPreset,
+    STEALTH_THEMES,
     type StealthThemePreset
 } from '../types/settings';
-import { listModels, testApiKey, type ModelInfo } from '../services/gemini-adapter';
-import { storageService } from '../services/storage-service';
-import { getStorageValues, setStorageValues } from '../utils/chrome-helpers';
+import {listModels, type ModelInfo, testApiKey} from '../services/gemini-adapter';
+import {storageService} from '../services/storage-service';
+import {getStorageValues, setStorageValues} from '../utils/chrome-helpers';
 
 export default function OptionsApp() {
     const [settings, setSettings] = useState<ExtensionSettings>(DEFAULT_SETTINGS);
@@ -64,7 +64,7 @@ export default function OptionsApp() {
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
     ) => {
-        const { name, value, type } = e.target;
+        const {name, value, type} = e.target;
         let parsedValue: string | number | boolean = value;
 
         if (type === 'checkbox') {
@@ -157,7 +157,7 @@ export default function OptionsApp() {
     };
 
     const showStatusMessage = (message: string, type: 'success' | 'error' | 'info') => {
-        setStatus({ message, type });
+        setStatus({message, type});
         setTimeout(() => setStatus(null), 3000);
     };
 
@@ -230,13 +230,19 @@ export default function OptionsApp() {
                         <div className="stealth-info-box">
                             <strong>💡 How Stealth Overlay Works:</strong>
                             <ul>
-                                <li><strong>Text Selection</strong>: Click and drag over text directly to select and copy.</li>
-                                <li><strong>Reposition</strong>: Hold <kbd>Alt</kbd> (or <kbd>Option</kbd>) and drag anywhere to move.</li>
-                                <li><strong>Dismiss</strong>: Press <kbd>Esc</kbd> or <kbd>Cmd/Ctrl+Shift+D</kbd> to hide instantly.</li>
+                                <li><strong>Text Selection</strong>: Click and drag over text directly to select and
+                                    copy.
+                                </li>
+                                <li><strong>Reposition</strong>: Hold <kbd>Alt</kbd> (or <kbd>Option</kbd>) and drag
+                                    anywhere to move.
+                                </li>
+                                <li><strong>Dismiss / Hide</strong>: Press <kbd>Esc</kbd>, click <kbd>×</kbd> in the top
+                                    right, double-click the top drag bar, or press <kbd>Cmd/Ctrl+Shift+X</kbd>.
+                                </li>
                             </ul>
                         </div>
 
-                        <div className="form-group checkbox-group" style={{ marginTop: '20px' }}>
+                        <div className="form-group checkbox-group" style={{marginTop: '20px'}}>
                             <label htmlFor="unblock_drag" className="checkbox-label">
                                 <input
                                     type="checkbox"
@@ -247,7 +253,9 @@ export default function OptionsApp() {
                                 />
                                 <div>
                                     <strong>🔓 Unblock Drag & Copy on Protected Pages</strong>
-                                    <small>Force-enables text selection, drag-and-drop, and copying on websites that disable them (e.g. online exams, secure test portals, copy-protected documents).</small>
+                                    <small>Force-enables text selection, drag-and-drop, and copying on websites that
+                                        disable them (e.g. online exams, secure test portals, copy-protected
+                                        documents).</small>
                                 </div>
                             </label>
                         </div>
@@ -266,8 +274,8 @@ export default function OptionsApp() {
                                     fontSize: `${settings.style_fontSize}px`,
                                 }}
                             >
-                                1. Q: (2x + 5 = 15) → <strong>x = 5</strong><br />
-                                2. Answer: Option (C)<br />
+                                1. Q: (2x + 5 = 15) → <strong>x = 5</strong><br/>
+                                2. Answer: Option (C)<br/>
                                 3. Result verified.
                             </div>
                         </div>
@@ -284,9 +292,9 @@ export default function OptionsApp() {
                                         onChange={handleChange}
                                         min="0"
                                         max="100"
-                                        style={{ flex: 1 }}
+                                        style={{flex: 1}}
                                     />
-                                    <span className="suffix" style={{ minWidth: '48px', fontWeight: 600 }}>
+                                    <span className="suffix" style={{minWidth: '48px', fontWeight: 600}}>
                                         {settings.style_bgOpacity === 0 ? '0% (None)' : `${settings.style_bgOpacity}%`}
                                     </span>
                                 </div>
@@ -500,7 +508,8 @@ export default function OptionsApp() {
                 <div className="panel full-width-panel">
                     <h2>Keyboard Shortcuts Guide</h2>
                     <p className="section-desc">
-                        Argus is built to be fast, quiet, and keyboard-first. Use these key combinations anywhere on web pages.
+                        Argus is built to be fast, quiet, and keyboard-first. Use these key combinations anywhere on web
+                        pages.
                     </p>
 
                     <div className="shortcuts-table">
@@ -518,13 +527,13 @@ export default function OptionsApp() {
 
                         <div className="shortcut-row">
                             <div className="shortcut-keys">
-                                <kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>D</kbd>
+                                <kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>X</kbd>
                                 <span className="or-badge">or</span>
-                                <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>D</kbd>
+                                <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>X</kbd>
                             </div>
                             <div className="shortcut-info">
                                 <strong>Toggle Overlay</strong>
-                                <span>Shows or hides the response overlay quietly without making a request.</span>
+                                <span>Shows or hides the response overlay quietly without making a request. (Also supports <kbd>Alt+Shift+D</kbd> or clicking the extension icon)</span>
                             </div>
                         </div>
 
@@ -546,7 +555,7 @@ export default function OptionsApp() {
                             </div>
                             <div className="shortcut-info">
                                 <strong>Dismiss Overlay</strong>
-                                <span>Instantly dismisses the overlay window without touching anything else.</span>
+                                <span>Instantly dismisses the overlay window from anywhere. You can also click <kbd>×</kbd> or double-click the top drag bar.</span>
                             </div>
                         </div>
                     </div>
@@ -560,7 +569,7 @@ export default function OptionsApp() {
                             className="secondary-link"
                             onClick={(e) => {
                                 e.preventDefault();
-                                chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+                                chrome.tabs.create({url: 'chrome://extensions/shortcuts'});
                             }}
                         >
                             Open Chrome Shortcuts Manager →
@@ -574,7 +583,8 @@ export default function OptionsApp() {
                 <div className="panel full-width-panel">
                     <h2>Storage & History</h2>
                     <p className="section-desc">
-                        Argus saves conversation sessions and responses locally in IndexedDB on your browser for privacy.
+                        Argus saves conversation sessions and responses locally in IndexedDB on your browser for
+                        privacy.
                     </p>
 
                     <div className="storage-stats">

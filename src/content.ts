@@ -1,12 +1,12 @@
-import { DEFAULT_SETTINGS, type ExtensionSettings } from './types/settings';
-import type { ChromeMessage } from './types/messages';
+import {DEFAULT_SETTINGS, type ExtensionSettings} from './types/settings';
+import type {ChromeMessage} from './types/messages';
 
 if (typeof window.argusInjected === 'undefined') {
     window.argusInjected = true;
 
     const OVERLAY_ID = 'argus-overlay';
     const UNBLOCK_STYLE_ID = 'argus-unblock-drag-style';
-    let currentSettings: ExtensionSettings = { ...DEFAULT_SETTINGS };
+    let currentSettings: ExtensionSettings = {...DEFAULT_SETTINGS};
 
     function hexToRgba(hex: string, opacity: number): string {
         const cleanHex = hex.replace('#', '');
@@ -31,13 +31,13 @@ if (typeof window.argusInjected === 'undefined') {
     async function savePosition(x: number, y: number): Promise<void> {
         currentSettings.overlay_x = x;
         currentSettings.overlay_y = y;
-        await chrome.storage.local.set({ overlay_x: x, overlay_y: y });
+        await chrome.storage.local.set({overlay_x: x, overlay_y: y});
     }
 
     async function saveSize(width: number, height: number): Promise<void> {
         currentSettings.style_maxWidth = width;
         currentSettings.style_maxHeight = height;
-        await chrome.storage.local.set({ style_maxWidth: width, style_maxHeight: height });
+        await chrome.storage.local.set({style_maxWidth: width, style_maxHeight: height});
     }
 
     /**
@@ -90,74 +90,55 @@ if (typeof window.argusInjected === 'undefined') {
     }
 
     // 3. Intercept and neutralize anti-copy / anti-drag capturing event listeners
-    window.addEventListener(
-        'selectstart',
-        (e) => {
-            if (currentSettings.unblock_drag) {
-                // Prevent hostile page script from blocking text selection start
-                e.stopImmediatePropagation();
-            }
-        },
-        true
-    );
+    window.addEventListener('selectstart', (e) => {
+        if (currentSettings.unblock_drag) {
+            // Prevent hostile page script from blocking text selection start
+            e.stopImmediatePropagation();
+        }
+    }, true);
 
-    window.addEventListener(
-        'dragstart',
-        (e) => {
-            if (currentSettings.unblock_drag) {
-                e.stopImmediatePropagation();
-            }
-        },
-        true
-    );
+    window.addEventListener('dragstart', (e) => {
+        if (currentSettings.unblock_drag) {
+            e.stopImmediatePropagation();
+        }
+    }, true);
 
-    window.addEventListener(
-        'contextmenu',
-        (e) => {
-            if (currentSettings.unblock_drag) {
-                // Prevent hostile page script from canceling right-click context menu
-                e.stopImmediatePropagation();
-            }
-        },
-        true
-    );
+    window.addEventListener('contextmenu', (e) => {
+        if (currentSettings.unblock_drag) {
+            // Prevent hostile page script from canceling right-click context menu
+            e.stopImmediatePropagation();
+        }
+    }, true);
 
     // 4. Guaranteed Copy Handler: Ensure selected text is written to clipboard directly
-    window.addEventListener(
-        'copy',
-        (e) => {
-            if (!currentSettings.unblock_drag) return;
+    window.addEventListener('copy', (e) => {
+        if (!currentSettings.unblock_drag) return;
 
-            const selectedText = window.getSelection()?.toString();
-            if (selectedText && selectedText.length > 0) {
-                // Stop page scripts from overriding clipboard data with empty string or calling preventDefault()
-                e.stopImmediatePropagation();
-                if (e.clipboardData) {
-                    e.clipboardData.setData('text/plain', selectedText);
-                    e.preventDefault();
-                }
+        const selectedText = window.getSelection()?.toString();
+        if (selectedText && selectedText.length > 0) {
+            // Stop page scripts from overriding clipboard data with empty string or calling preventDefault()
+            e.stopImmediatePropagation();
+            if (e.clipboardData) {
+                e.clipboardData.setData('text/plain', selectedText);
+                e.preventDefault();
             }
-        },
-        true
-    );
+        }
+    }, true);
 
     // 5. Fallback Keyboard Copy Interceptor (Cmd+C / Ctrl+C)
-    window.addEventListener(
-        'keydown',
-        (e) => {
-            if (!currentSettings.unblock_drag) return;
+    window.addEventListener('keydown', (e) => {
+        if (!currentSettings.unblock_drag) return;
 
-            const isCopyKey = (e.metaKey || e.ctrlKey) && (e.key === 'c' || e.key === 'C');
-            if (isCopyKey) {
-                const selectedText = window.getSelection()?.toString();
-                if (selectedText && selectedText.length > 0) {
-                    // Try writing to clipboard directly in case page cancels the copy event
-                    navigator.clipboard?.writeText(selectedText).catch(() => {});
-                }
+        const isCopyKey = (e.metaKey || e.ctrlKey) && (e.key === 'c' || e.key === 'C');
+        if (isCopyKey) {
+            const selectedText = window.getSelection()?.toString();
+            if (selectedText && selectedText.length > 0) {
+                // Try writing to clipboard directly in case page cancels the copy event
+                navigator.clipboard?.writeText(selectedText).catch(() => {
+                });
             }
-        },
-        true
-    );
+        }
+    }, true);
 
     function formatTextToHtml(raw: string): string {
         const escaped = raw
@@ -192,7 +173,6 @@ if (typeof window.argusInjected === 'undefined') {
                 font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
                 margin: 0 !important;
                 padding: 4px 8px 8px 8px !important;
-                display: flex !important;
                 flex-direction: column !important;
                 user-select: text !important;
                 -webkit-user-select: text !important;
@@ -202,6 +182,16 @@ if (typeof window.argusInjected === 'undefined') {
                 position: fixed !important;
                 pointer-events: auto !important;
             }
+            #${OVERLAY_ID}.argus-hidden,
+            #${OVERLAY_ID}[hidden] {
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+                pointer-events: none !important;
+            }
+            #${OVERLAY_ID}:not(.argus-hidden):not([hidden]) {
+                display: flex !important;
+            }
             #${OVERLAY_ID} * {
                 box-sizing: border-box !important;
             }
@@ -209,16 +199,24 @@ if (typeof window.argusInjected === 'undefined') {
                 background: rgba(99, 102, 241, 0.45) !important;
                 color: #ffffff !important;
             }
-            #${OVERLAY_ID}-drag-bar {
-                height: 10px !important;
+            #${OVERLAY_ID}-header {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
                 width: 100% !important;
-                cursor: grab !important;
+                height: 14px !important;
                 flex-shrink: 0 !important;
+                margin-bottom: 2px !important;
+                user-select: none !important;
+                -webkit-user-select: none !important;
+            }
+            #${OVERLAY_ID}-drag-bar {
+                height: 14px !important;
+                flex: 1 !important;
+                cursor: grab !important;
                 display: flex !important;
                 align-items: center !important;
                 justify-content: center !important;
-                user-select: none !important;
-                -webkit-user-select: none !important;
                 opacity: 0.25 !important;
                 transition: opacity 0.15s ease !important;
                 padding: 2px 0 !important;
@@ -237,6 +235,28 @@ if (typeof window.argusInjected === 'undefined') {
             }
             #${OVERLAY_ID}-drag-bar:active {
                 cursor: grabbing !important;
+            }
+            #${OVERLAY_ID}-close-btn {
+                width: 16px !important;
+                height: 14px !important;
+                cursor: pointer !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                font-size: 14px !important;
+                line-height: 1 !important;
+                opacity: 0.25 !important;
+                transition: opacity 0.15s ease, background 0.15s ease !important;
+                border-radius: 3px !important;
+                margin-left: 4px !important;
+                color: currentColor !important;
+            }
+            #${OVERLAY_ID}:hover #${OVERLAY_ID}-close-btn {
+                opacity: 0.6 !important;
+            }
+            #${OVERLAY_ID}-close-btn:hover {
+                opacity: 1 !important;
+                background: rgba(128, 128, 128, 0.25) !important;
             }
             #${OVERLAY_ID}-content {
                 user-select: text !important;
@@ -305,7 +325,13 @@ if (typeof window.argusInjected === 'undefined') {
         overlay.addEventListener('mousedown', (e) => {
             const resizer = document.getElementById(`${OVERLAY_ID}-resizer`);
             const dragBar = document.getElementById(`${OVERLAY_ID}-drag-bar`);
+            const closeBtn = document.getElementById(`${OVERLAY_ID}-close-btn`);
             const rect = overlay.getBoundingClientRect();
+
+            // 0. Ignore if close button was clicked
+            if (closeBtn && (closeBtn === e.target || closeBtn.contains(e.target as Node))) {
+                return;
+            }
 
             // 1. Resize Handle (bottom-right)
             const isResizerClick = resizer && (resizer === e.target || resizer.contains(e.target as Node));
@@ -362,7 +388,7 @@ if (typeof window.argusInjected === 'undefined') {
                 overlay.style.left = `${newX}px`;
                 overlay.style.top = `${newY}px`;
             }
-        }, { capture: true });
+        }, {capture: true});
 
         window.addEventListener('mouseup', () => {
             if (isResizing) {
@@ -375,7 +401,56 @@ if (typeof window.argusInjected === 'undefined') {
                 document.body.style.cursor = '';
                 void savePosition(overlay.offsetLeft, overlay.offsetTop);
             }
-        }, { capture: true });
+        }, {capture: true});
+    }
+
+    function attachHeaderEvents(): void {
+        const closeBtn = document.getElementById(`${OVERLAY_ID}-close-btn`);
+        if (closeBtn) {
+            closeBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                hideOverlay();
+            };
+        }
+
+        const dragBar = document.getElementById(`${OVERLAY_ID}-drag-bar`);
+        if (dragBar) {
+            dragBar.ondblclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                hideOverlay();
+            };
+        }
+    }
+
+    function isOverlayVisible(overlay: HTMLElement | null): boolean {
+        if (!overlay) return false;
+        if (overlay.classList.contains('argus-hidden') || overlay.hasAttribute('hidden')) {
+            return false;
+        }
+        if (overlay.style.display === 'none') {
+            return false;
+        }
+        const computed = window.getComputedStyle(overlay);
+        return computed.display !== 'none' && computed.visibility !== 'hidden' && computed.opacity !== '0';
+    }
+
+    function hideOverlay(): void {
+        const overlay = document.getElementById(OVERLAY_ID);
+        if (overlay) {
+            overlay.classList.add('argus-hidden');
+            overlay.setAttribute('hidden', '');
+            overlay.style.setProperty('display', 'none', 'important');
+            overlay.style.setProperty('visibility', 'hidden', 'important');
+        }
+    }
+
+    function showOverlayElement(overlay: HTMLElement): void {
+        overlay.classList.remove('argus-hidden');
+        overlay.removeAttribute('hidden');
+        overlay.style.setProperty('display', 'flex', 'important');
+        overlay.style.setProperty('visibility', 'visible', 'important');
     }
 
     async function showOverlay(text: string, status?: 'loading' | 'success' | 'error' | 'info'): Promise<void> {
@@ -391,7 +466,7 @@ if (typeof window.argusInjected === 'undefined') {
             document.body.appendChild(overlay);
         }
 
-        overlay.style.display = 'flex';
+        showOverlayElement(overlay);
 
         // Positioning
         const defaultX = Math.max(8, window.innerWidth - (s.style_maxWidth || 380) - 12);
@@ -415,12 +490,17 @@ if (typeof window.argusInjected === 'undefined') {
         overlay.style.zIndex = '2147483647';
         overlay.style.overflow = 'hidden';
 
-        // Minimalist Layout: Slim top drag bar + Content + Resizer Hitbox
+        // Minimalist Layout: Header with drag bar & close button + Content + Resizer Hitbox
         overlay.innerHTML = `
-            <div id="${OVERLAY_ID}-drag-bar" title="Drag to move (or hold Alt/Shift to drag anywhere)"></div>
+            <div id="${OVERLAY_ID}-header">
+                <div id="${OVERLAY_ID}-drag-bar" title="Drag to move (Double-click to hide)"></div>
+                <div id="${OVERLAY_ID}-close-btn" title="Close overlay (Esc)">×</div>
+            </div>
             <div id="${OVERLAY_ID}-content"></div>
             <div id="${OVERLAY_ID}-resizer" title="Drag corner to resize"></div>
         `;
+
+        attachHeaderEvents();
 
         const contentEl = document.getElementById(`${OVERLAY_ID}-content`)!;
 
@@ -441,42 +521,85 @@ if (typeof window.argusInjected === 'undefined') {
             void showOverlay('Ready. Press shortcut to capture.');
             return;
         }
-        overlay.style.display = overlay.style.display === 'none' ? 'flex' : 'none';
+        if (isOverlayVisible(overlay)) {
+            hideOverlay();
+        } else {
+            showOverlayElement(overlay);
+        }
     }
 
-    // Dismiss with Escape key
-    document.addEventListener('keydown', (e) => {
+    // Dismiss with Escape key or keyboard shortcuts (Capturing phase ensures we beat hostile page listeners)
+    window.addEventListener('keydown', (e) => {
+        const overlay = document.getElementById(OVERLAY_ID);
+        const overlayVisible = isOverlayVisible(overlay);
+
+        // 1. Escape key: Dismiss overlay immediately if visible
         if (e.key === 'Escape') {
-            const overlay = document.getElementById(OVERLAY_ID);
-            if (overlay && overlay.style.display !== 'none') {
-                const activeTag = document.activeElement?.tagName.toLowerCase();
-                if (activeTag !== 'input' && activeTag !== 'textarea') {
-                    overlay.style.display = 'none';
-                }
+            if (overlayVisible) {
+                hideOverlay();
+                e.preventDefault();
+                e.stopPropagation();
+                return;
             }
         }
-    });
+
+        const isShift = e.shiftKey;
+        const isMod = e.metaKey || e.ctrlKey;
+        const key = e.key.toLowerCase();
+
+        // 2. Direct in-page fallback shortcut capture for toggling
+        // Matches Cmd/Ctrl+Shift+X, Cmd/Ctrl+Shift+D, or Alt/Option+Shift+D
+        if ((isShift && isMod && (key === 'x' || key === 'd')) || (isShift && e.altKey && key === 'd')) {
+            toggleOverlay();
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+
+        // 3. Direct in-page capture shortcut: Cmd/Ctrl+Shift+E
+        if (isShift && isMod && key === 'e') {
+            try {
+                void chrome.runtime.sendMessage({type: 'REQUEST_CAPTURE'});
+            } catch {
+                // Ignore if runtime unavailable
+            }
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+
+        // 4. Direct in-page new session shortcut: Cmd/Ctrl+Shift+N
+        if (isShift && isMod && key === 'n') {
+            try {
+                void chrome.runtime.sendMessage({type: 'REQUEST_NEW_SESSION'});
+            } catch {
+                // Ignore
+            }
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+    }, true);
 
     // Message Listener
     chrome.runtime.onMessage.addListener((request: ChromeMessage, _sender, sendResponse) => {
         if (request.type === 'PING') {
-            sendResponse({ status: 'pong' });
+            sendResponse({status: 'pong'});
             return false;
         }
 
         if (request.type === 'displayResult') {
             void showOverlay(request.text, request.status);
-            sendResponse({ status: 'ok' });
+            sendResponse({status: 'ok'});
         } else if (request.type === 'toggleOverlay') {
             toggleOverlay();
-            sendResponse({ status: 'ok' });
+            sendResponse({status: 'ok'});
         } else if (request.type === 'error') {
             void showOverlay(`Err: ${request.error}`, 'error');
-            sendResponse({ status: 'ok' });
+            sendResponse({status: 'ok'});
         } else if (request.type === 'clearOverlay') {
-            const overlay = document.getElementById(OVERLAY_ID);
-            if (overlay) overlay.style.display = 'none';
-            sendResponse({ status: 'ok' });
+            hideOverlay();
+            sendResponse({status: 'ok'});
         }
 
         return false;
@@ -490,16 +613,8 @@ if (typeof window.argusInjected === 'undefined') {
             }
 
             const overlay = document.getElementById(OVERLAY_ID);
-            if (overlay && overlay.style.display !== 'none') {
-                const styleKeys = [
-                    'style_fontSize',
-                    'style_textColor',
-                    'style_bgColor',
-                    'style_bgOpacity',
-                    'style_maxWidth',
-                    'style_maxHeight',
-                    'stealth_mode'
-                ];
+            if (overlay && isOverlayVisible(overlay)) {
+                const styleKeys = ['style_fontSize', 'style_textColor', 'style_bgColor', 'style_bgOpacity', 'style_maxWidth', 'style_maxHeight', 'stealth_mode'];
                 const hasStyleChange = Object.keys(changes).some(key => styleKeys.includes(key));
                 if (hasStyleChange) {
                     const contentEl = document.getElementById(`${OVERLAY_ID}-content`);
