@@ -7,9 +7,11 @@ import {queryGemini} from './gemini-adapter';
 import type {ExtensionSettings} from '../types/settings';
 
 export async function queryWithContext(
-    dataUrl: string,
+    dataUrl: string | null,
     settings: ExtensionSettings,
-    sessionId: string | null
+    sessionId: string | null,
+    customPrompt?: string,
+    onChunk?: (chunk: string, fullText: string) => void
 ): Promise<string> {
     let history: ConversationMessage[] = [];
 
@@ -21,12 +23,13 @@ export async function queryWithContext(
         }
     }
 
-    const response = await queryGemini(dataUrl, settings, history);
+    const effectivePrompt = customPrompt || settings.gemini_prompt;
+    const response = await queryGemini(dataUrl, settings, history, effectivePrompt, onChunk);
 
-    // Save only valid responses to conversation history
+    // Save only valid responses to conversation history (without huge image blob to prevent DB bloat)
     if (sessionId && !response.startsWith('Error:')) {
         try {
-            await sessionManager.addMessage(sessionId, 'user', settings.gemini_prompt, dataUrl);
+            await sessionManager.addMessage(sessionId, 'user', effectivePrompt);
             await sessionManager.addMessage(sessionId, 'assistant', response);
         } catch (error) {
             console.error('[Session Context] Failed to save history:', error);

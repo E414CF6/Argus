@@ -14,6 +14,7 @@ export interface ExtensionSettings {
     style_maxHeight: number;
     overlay_x: number;
     overlay_y: number;
+
     [key: string]: string | number | boolean | unknown;
 }
 
@@ -148,12 +149,12 @@ export const STEALTH_THEMES: StealthThemePreset[] = [
 ];
 
 export const FALLBACK_MODELS = [
-    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Next-gen fast multimodal model' },
-    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: 'Next-gen advanced multimodal reasoning model' },
-    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: 'Fast, versatile model for general visual queries' },
-    { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite', description: 'Lightweight high-efficiency model' },
-    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: 'Fast and lightweight model' },
-    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: 'High reasoning capabilities for complex visual tasks' }
+    {id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Next-gen fast multimodal model'},
+    {id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: 'Next-gen advanced multimodal reasoning model'},
+    {id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: 'Fast, versatile model for general visual queries'},
+    {id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite', description: 'Lightweight high-efficiency model'},
+    {id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: 'Fast and lightweight model'},
+    {id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: 'High reasoning capabilities for complex visual tasks'}
 ];
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {

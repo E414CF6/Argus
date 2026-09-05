@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { DEFAULT_PROMPT, DEFAULT_SETTINGS, FALLBACK_MODELS, PROMPT_PRESETS, STEALTH_THEMES } from '../settings';
+import {describe, expect, it} from 'vitest';
+import {DEFAULT_PROMPT, DEFAULT_SETTINGS, FALLBACK_MODELS, PROMPT_PRESETS, STEALTH_THEMES} from '../settings';
 
 describe('settings defaults', () => {
     it('has expected default values prioritizing pure stealth and unblock drag', () => {

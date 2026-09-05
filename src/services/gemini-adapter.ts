@@ -97,13 +97,67 @@ export async function testApiKey(apiKey: string): Promise<{ success: boolean; me
     }
 }
 
+export interface GeminiContentPart {
+    text?: string;
+    inlineData?: {
+        mimeType: string;
+        data: string;
+    };
+}
+
+export interface GeminiContent {
+    role: 'user' | 'model';
+    parts: GeminiContentPart[];
+}
+
 /**
- * Queries Gemini with the captured screenshot and multi-turn conversation context.
+ * Normalizes multi-turn conversation history to guarantee Gemini API compliance:
+ * 1. Must start with 'user'
+ * 2. Strictly alternate between 'user' and 'model'
+ * 3. Ends with 'model' before the new turn's 'user' message
+ */
+export function normalizeHistoryForGemini(history: ConversationMessage[] = []): GeminiContent[] {
+    if (!history || history.length === 0) return [];
+
+    let recent = history.slice(-6);
+    // Discard leading model/assistant messages
+    while (recent.length > 0 && recent[0].role === 'assistant') {
+        recent = recent.slice(1);
+    }
+
+    const contents: GeminiContent[] = [];
+
+    for (const msg of recent) {
+        if (!msg.content || !msg.content.trim()) continue;
+        const role = msg.role === 'assistant' ? 'model' : 'user';
+
+        if (contents.length > 0 && contents[contents.length - 1].role === role) {
+            contents[contents.length - 1].parts.push({text: msg.content});
+        } else {
+            contents.push({
+                role,
+                parts: [{text: msg.content}]
+            });
+        }
+    }
+
+    // Since the next turn will be 'user', history must end with 'model'
+    while (contents.length > 0 && contents[contents.length - 1].role === 'user') {
+        contents.pop();
+    }
+
+    return contents;
+}
+
+/**
+ * Queries Gemini with the captured screenshot, multi-turn context, and optional streaming.
  */
 export async function queryGemini(
-    dataUrl: string,
+    dataUrl: string | null,
     settings: ExtensionSettings,
-    history: ConversationMessage[] = []
+    history: ConversationMessage[] = [],
+    customPrompt?: string,
+    onChunk?: (chunk: string, fullText: string) => void
 ): Promise<string> {
     const {gemini_apiKey, gemini_model, gemini_prompt, gemini_timeout} = settings;
 
@@ -114,44 +168,30 @@ export async function queryGemini(
 
         const ai = getAI(gemini_apiKey.trim());
 
-        // Validate image format
-        if (!dataUrl || !dataUrl.includes(';base64,')) {
-            throw new Error('Invalid image data URL');
-        }
+        const contents: GeminiContent[] = normalizeHistoryForGemini(history);
+        const currentTurnParts: GeminiContentPart[] = [];
 
-        const [mimeTypePart, base64Data] = dataUrl.split(';base64,');
-        const mimeType = mimeTypePart.replace('data:', '');
-
-        // Structure multi-turn conversation contents
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const contents: any[] = [];
-
-        // Add recent conversation history (last 6 messages) for multi-turn reasoning
-        if (history && history.length > 0) {
-            const recent = history.slice(-6);
-            for (const msg of recent) {
-                const role = msg.role === 'assistant' ? 'model' : 'user';
-                contents.push({
-                    role,
-                    parts: [{text: msg.content}]
-                });
+        // Validate image format if provided
+        if (dataUrl) {
+            if (!dataUrl.includes(';base64,')) {
+                throw new Error('Invalid image data URL');
             }
+            const [mimeTypePart, base64Data] = dataUrl.split(';base64,');
+            const mimeType = mimeTypePart.replace('data:', '');
+            currentTurnParts.push({
+                inlineData: {
+                    mimeType,
+                    data: base64Data
+                }
+            });
         }
 
-        // Current turn: image + user prompt
+        const effectivePrompt = customPrompt || gemini_prompt || 'Analyze the provided screen and answer concisely.';
+        currentTurnParts.push({text: effectivePrompt});
+
         contents.push({
             role: 'user',
-            parts: [
-                {
-                    inlineData: {
-                        mimeType,
-                        data: base64Data
-                    }
-                },
-                {
-                    text: gemini_prompt || 'Analyze the provided screen and answer concisely.'
-                }
-            ]
+            parts: currentTurnParts
         });
 
         const timeoutMs = (gemini_timeout || 90) * 1000;
@@ -164,15 +204,33 @@ export async function queryGemini(
         });
 
         try {
-            const response = await Promise.race([
-                ai.models.generateContent({
+            if (onChunk) {
+                const streamPromise = (async () => {
+                    const responseStream = await ai.models.generateContentStream({
+                        model: gemini_model || 'gemini-2.5-flash',
+                        contents
+                    });
+                    let accumulated = '';
+                    for await (const chunk of responseStream) {
+                        const text = chunk.text || '';
+                        if (text) {
+                            accumulated += text;
+                            onChunk(text, accumulated);
+                        }
+                    }
+                    return accumulated || 'No textual response received from Gemini.';
+                })();
+
+                return await Promise.race([streamPromise, timeoutPromise]);
+            } else {
+                const generatePromise = ai.models.generateContent({
                     model: gemini_model || 'gemini-2.5-flash',
                     contents
-                }),
-                timeoutPromise
-            ]);
+                });
 
-            return response.text || 'No textual response received from Gemini.';
+                const response = await Promise.race([generatePromise, timeoutPromise]);
+                return response.text || 'No textual response received from Gemini.';
+            }
         } finally {
             if (timeoutId) clearTimeout(timeoutId);
         }

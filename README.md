@@ -74,7 +74,7 @@ Before using Argus, configure your Gemini API key:
 | Shortcut               | Action              | Description                                           |
 |:-----------------------|:--------------------|:------------------------------------------------------|
 | `Cmd/Ctrl + Shift + E` | **Capture & Query** | Capture visible page area and analyze with Gemini.    |
-| `Cmd/Ctrl + Shift + D` | **Toggle Overlay**  | Show/hide the floating overlay without a new request. |
+| `Cmd/Ctrl + Shift + X` | **Toggle Overlay**  | Show/hide the floating overlay without a new request. |
 | `Cmd/Ctrl + Shift + N` | **New Session**     | Reset conversation history and start a fresh session. |
 | `Esc`                  | **Dismiss Overlay** | Instantly close the active overlay.                   |
 

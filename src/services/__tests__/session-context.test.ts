@@ -20,9 +20,9 @@ describe('session-context', () => {
         const response = await queryWithContext('data:image/jpeg;base64,123', DEFAULT_SETTINGS, 's_test_1');
 
         expect(response).toBe('Answer: 42');
-        expect(querySpy).toHaveBeenCalledWith('data:image/jpeg;base64,123', DEFAULT_SETTINGS, expect.any(Array));
+        expect(querySpy).toHaveBeenCalledWith('data:image/jpeg;base64,123', DEFAULT_SETTINGS, expect.any(Array), DEFAULT_SETTINGS.gemini_prompt, undefined);
         expect(addMessageSpy).toHaveBeenCalledTimes(2);
-        expect(addMessageSpy).toHaveBeenNthCalledWith(1, 's_test_1', 'user', DEFAULT_SETTINGS.gemini_prompt, 'data:image/jpeg;base64,123');
+        expect(addMessageSpy).toHaveBeenNthCalledWith(1, 's_test_1', 'user', DEFAULT_SETTINGS.gemini_prompt);
         expect(addMessageSpy).toHaveBeenNthCalledWith(2, 's_test_1', 'assistant', 'Answer: 42');
     });
 

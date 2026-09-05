@@ -11,7 +11,8 @@ import {
     type StealthThemePreset
 } from '../types/settings';
 import {listModels, type ModelInfo, testApiKey} from '../services/gemini-adapter';
-import {storageService} from '../services/storage-service';
+import {type SessionData} from '../services/storage-service';
+import {sessionManager} from '../services/session-manager';
 import {getStorageValues, setStorageValues} from '../utils/chrome-helpers';
 
 export default function OptionsApp() {
@@ -21,45 +22,77 @@ export default function OptionsApp() {
     const [loadingModels, setLoadingModels] = useState(false);
     const [testingKey, setTestingKey] = useState(false);
     const [sessionCount, setSessionCount] = useState<number>(0);
+    const [sessionsList, setSessionsList] = useState<SessionData[]>([]);
+    const [storageUsage, setStorageUsage] = useState<string>('Calculating...');
     const [activeTab, setActiveTab] = useState<'stealth' | 'api' | 'shortcuts' | 'data'>('stealth');
 
-    const refreshSessionCount = useCallback(async () => {
+    const refreshSessionData = useCallback(async () => {
         try {
-            const sessions = await storageService.getAllSessions();
+            const sessions = await sessionManager.getAllSessions();
             setSessionCount(sessions.length);
+            setSessionsList(sessions);
+
+            if (navigator.storage && navigator.storage.estimate) {
+                const estimate = await navigator.storage.estimate();
+                const usageKb = Math.round((estimate.usage || 0) / 1024);
+                if (usageKb > 1024) {
+                    setStorageUsage(`${(usageKb / 1024).toFixed(1)} MB`);
+                } else {
+                    setStorageUsage(`${usageKb} KB`);
+                }
+            } else {
+                setStorageUsage('IndexedDB');
+            }
         } catch {
             setSessionCount(0);
+            setSessionsList([]);
+            setStorageUsage('IndexedDB');
         }
     }, []);
 
-    const fetchModels = useCallback(async (apiKey: string) => {
+    const fetchModels = useCallback(async (apiKey: string, currentModelId?: string) => {
         if (!apiKey || apiKey.trim().length < 10) return;
 
         setLoadingModels(true);
         try {
             const fetched = await listModels(apiKey.trim());
             if (fetched && fetched.length > 0) {
-                setModels(fetched);
+                setModels(() => {
+                    const target = currentModelId || settings.gemini_model;
+                    if (target && !fetched.some((m) => m.id === target)) {
+                        return [{id: target, name: target}, ...fetched];
+                    }
+                    return fetched;
+                });
             }
         } catch (error) {
             console.error('Failed to fetch models:', error);
         } finally {
             setLoadingModels(false);
         }
-    }, []);
+    }, [settings.gemini_model]);
 
     useEffect(() => {
         getStorageValues<ExtensionSettings>(DEFAULT_SETTINGS)
             .then((items) => {
                 setSettings(items);
+                // Preserve saved model in options dropdown if not present in fallback list
+                if (items.gemini_model) {
+                    setModels((prev) => {
+                        if (!prev.some((m) => m.id === items.gemini_model)) {
+                            return [{id: items.gemini_model, name: items.gemini_model}, ...prev];
+                        }
+                        return prev;
+                    });
+                }
                 if (items.gemini_apiKey) {
-                    void fetchModels(items.gemini_apiKey);
+                    void fetchModels(items.gemini_apiKey, items.gemini_model);
                 }
             })
             .catch(console.error);
 
-        void refreshSessionCount();
-    }, [fetchModels, refreshSessionCount]);
+        void refreshSessionData();
+    }, [fetchModels, refreshSessionData]);
 
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -146,13 +179,55 @@ export default function OptionsApp() {
     const handleClearSessions = async () => {
         if (window.confirm('Delete all saved conversation sessions and history?')) {
             try {
-                await storageService.clearAllSessions();
-                await refreshSessionCount();
+                await sessionManager.clearAllSessions();
+                await refreshSessionData();
                 showStatusMessage('All conversation history cleared.', 'success');
             } catch (err) {
                 console.error(err);
                 showStatusMessage('Failed to clear history.', 'error');
             }
+        }
+    };
+
+    const handleDeleteSession = async (sessionId: string) => {
+        try {
+            await sessionManager.deleteSession(sessionId);
+            await refreshSessionData();
+            showStatusMessage('Session deleted.', 'info');
+        } catch (err) {
+            console.error(err);
+            showStatusMessage('Failed to delete session.', 'error');
+        }
+    };
+
+    const handleExportHistory = async () => {
+        try {
+            const sessions = await sessionManager.getAllSessions();
+            const exportData: Record<string, unknown>[] = [];
+
+            for (const s of sessions) {
+                const history = await sessionManager.getHistory(s.id);
+                exportData.push({
+                    session: s,
+                    messages: history.map((m) => ({
+                        role: m.role,
+                        content: m.content,
+                        timestamp: m.timestamp
+                    }))
+                });
+            }
+
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `argus-history-${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showStatusMessage('Conversation history exported successfully!', 'success');
+        } catch (err) {
+            console.error(err);
+            showStatusMessage('Failed to export history.', 'error');
         }
     };
 
@@ -593,10 +668,78 @@ export default function OptionsApp() {
                             <span className="stat-label">Stored Sessions</span>
                         </div>
                         <div className="stat-card">
+                            <span className="stat-value">{storageUsage}</span>
+                            <span className="stat-label">Storage Usage</span>
+                        </div>
+                        <div className="stat-card">
                             <span className="stat-value">Local IndexedDB</span>
                             <span className="stat-label">Storage Engine</span>
                         </div>
                     </div>
+
+                    <div style={{marginBottom: '24px', display: 'flex', gap: '12px'}}>
+                        <button
+                            type="button"
+                            className="secondary-btn"
+                            onClick={handleExportHistory}
+                            disabled={sessionCount === 0}
+                            style={{padding: '10px 18px', fontSize: '0.9rem'}}
+                        >
+                            📥 Export All Sessions (JSON)
+                        </button>
+                    </div>
+
+                    {sessionsList.length > 0 && (
+                        <div style={{marginBottom: '28px'}}>
+                            <h3 style={{fontSize: '1rem', color: 'var(--text)', marginBottom: '12px'}}>Saved
+                                Sessions</h3>
+                            <div style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '8px',
+                                maxHeight: '280px',
+                                overflowY: 'auto'
+                            }}>
+                                {sessionsList.slice(0, 15).map((s) => (
+                                    <div
+                                        key={s.id}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            background: 'rgba(255, 255, 255, 0.02)',
+                                            border: '1px solid var(--border)',
+                                            borderRadius: '8px',
+                                            padding: '10px 14px'
+                                        }}
+                                    >
+                                        <div style={{display: 'flex', flexDirection: 'column', gap: '2px'}}>
+                                            <strong
+                                                style={{fontSize: '0.88rem', color: 'var(--text)'}}>{s.title}</strong>
+                                            <span style={{fontSize: '0.75rem', color: 'var(--text-muted)'}}>
+                                                {new Date(s.updatedAt).toLocaleString()} • {s.messageCount} messages
+                                            </span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDeleteSession(s.id)}
+                                            style={{
+                                                background: 'transparent',
+                                                border: '1px solid var(--border)',
+                                                color: '#f87171',
+                                                padding: '4px 10px',
+                                                borderRadius: '6px',
+                                                cursor: 'pointer',
+                                                fontSize: '0.78rem'
+                                            }}
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     <div className="danger-zone">
                         <h3>Session Data Management</h3>

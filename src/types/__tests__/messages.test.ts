@@ -21,4 +21,16 @@ describe('MessageFactory', () => {
         expect(MessageFactory.clearOverlay()).toEqual({type: 'clearOverlay'});
         expect(MessageFactory.ping()).toEqual({type: 'PING'});
     });
+
+    it('creates displayStreamChunk and requestCustomQuery messages', () => {
+        expect(MessageFactory.displayStreamChunk('abc', 'full text abc')).toEqual({
+            type: 'displayStreamChunk',
+            chunk: 'abc',
+            fullText: 'full text abc'
+        });
+        expect(MessageFactory.requestCustomQuery('What is 2+2?')).toEqual({
+            type: 'REQUEST_CUSTOM_QUERY',
+            prompt: 'What is 2+2?'
+        });
+    });
 });

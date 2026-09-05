@@ -1,15 +1,20 @@
 import {DEFAULT_SETTINGS, type ExtensionSettings} from './types/settings';
-import type {ChromeMessage} from './types/messages';
+import {type ChromeMessage, MessageFactory} from './types/messages';
 
 if (typeof window.argusInjected === 'undefined') {
     window.argusInjected = true;
 
+    const HOST_ID = 'argus-overlay-host';
     const OVERLAY_ID = 'argus-overlay';
     const UNBLOCK_STYLE_ID = 'argus-unblock-drag-style';
+
     let currentSettings: ExtensionSettings = {...DEFAULT_SETTINGS};
+    let hostElement: HTMLElement | null = null;
+    let shadowRoot: ShadowRoot | null = null;
+    let latestRawText = '';
 
     function hexToRgba(hex: string, opacity: number): string {
-        const cleanHex = hex.replace('#', '');
+        const cleanHex = (hex || '#000000').replace('#', '');
         const r = parseInt(cleanHex.slice(0, 2), 16) || 0;
         const g = parseInt(cleanHex.slice(2, 4), 16) || 0;
         const b = parseInt(cleanHex.slice(4, 6), 16) || 0;
@@ -17,9 +22,32 @@ if (typeof window.argusInjected === 'undefined') {
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
+    function ensureShadowRoot(): ShadowRoot {
+        if (!hostElement) {
+            hostElement = document.getElementById(HOST_ID);
+        }
+        if (!hostElement) {
+            hostElement = document.createElement('div');
+            hostElement.id = HOST_ID;
+            hostElement.style.all = 'initial';
+            hostElement.style.position = 'fixed';
+            hostElement.style.top = '0';
+            hostElement.style.left = '0';
+            hostElement.style.width = '0';
+            hostElement.style.height = '0';
+            hostElement.style.zIndex = '2147483647';
+            hostElement.style.pointerEvents = 'none';
+            (document.body || document.documentElement).appendChild(hostElement);
+        }
+        if (!shadowRoot) {
+            shadowRoot = hostElement.shadowRoot || hostElement.attachShadow({mode: 'open'});
+        }
+        return shadowRoot;
+    }
+
     async function loadSettings(): Promise<ExtensionSettings> {
         try {
-            const data = await chrome.storage.local.get(DEFAULT_SETTINGS as unknown as { [key: string]: unknown });
+            const data = await chrome.storage.local.get(DEFAULT_SETTINGS as unknown as Record<string, unknown>);
             currentSettings = (data as unknown as ExtensionSettings) || DEFAULT_SETTINGS;
             applyPageDragUnblocker(currentSettings.unblock_drag);
             return currentSettings;
@@ -41,146 +69,159 @@ if (typeof window.argusInjected === 'undefined') {
     }
 
     /**
-     * Complete Unblock Engine for copy-protected, drag-disabled, and contextmenu-locked web pages.
+     * Non-destructive Unblock Engine: Restores text selection & copying without breaking
+     * native HTML5 drag-and-drop or interactive web apps (Jira, Trello, Google Docs).
      */
     function applyPageDragUnblocker(enable = true): void {
+        const existingStyle = document.getElementById(UNBLOCK_STYLE_ID);
         if (!enable) {
-            const existingStyle = document.getElementById(UNBLOCK_STYLE_ID);
             if (existingStyle) existingStyle.remove();
             return;
         }
 
-        // 1. Force selectable CSS on all elements
-        let style = document.getElementById(UNBLOCK_STYLE_ID) as HTMLStyleElement | null;
-        if (!style) {
-            style = document.createElement('style');
+        if (!existingStyle) {
+            const style = document.createElement('style');
             style.id = UNBLOCK_STYLE_ID;
+            style.textContent = `
+                body, p, span, h1, h2, h3, h4, h5, h6, td, th, li, code, pre, article, section, label, blockquote {
+                    -webkit-user-select: text !important;
+                    -moz-user-select: text !important;
+                    -ms-user-select: text !important;
+                    user-select: text !important;
+                }
+            `;
             (document.head || document.documentElement).appendChild(style);
         }
-        style.textContent = `
-            *, *::before, *::after {
-                -webkit-user-select: text !important;
-                -moz-user-select: text !important;
-                -ms-user-select: text !important;
-                user-select: text !important;
-                -webkit-touch-callout: default !important;
-            }
-        `;
 
-        // 2. Clear inline event handler blockers
         try {
             document.onselectstart = null;
-            document.ondragstart = null;
             document.oncontextmenu = null;
-            document.oncopy = null;
-            document.oncut = null;
-            window.oncontextmenu = null;
-            window.oncopy = null;
-            window.onselectstart = null;
             if (document.body) {
                 document.body.onselectstart = null;
-                document.body.ondragstart = null;
                 document.body.oncontextmenu = null;
-                document.body.oncopy = null;
-                document.body.oncut = null;
             }
         } catch {
-            // Ignore restricted context
+            // Ignore restricted document contexts
         }
     }
 
-    // 3. Intercept and neutralize anti-copy / anti-drag capturing event listeners
+    // Allow user text selection even on pages with hostile traps
     window.addEventListener('selectstart', (e) => {
-        if (currentSettings.unblock_drag) {
-            // Prevent hostile page script from blocking text selection start
-            e.stopImmediatePropagation();
+        if (!currentSettings.unblock_drag) return;
+        const target = e.target as HTMLElement | null;
+        if (target && target.style && target.style.userSelect === 'none') {
+            target.style.userSelect = 'text';
         }
     }, true);
 
-    window.addEventListener('dragstart', (e) => {
-        if (currentSettings.unblock_drag) {
-            e.stopImmediatePropagation();
-        }
-    }, true);
-
-    window.addEventListener('contextmenu', (e) => {
-        if (currentSettings.unblock_drag) {
-            // Prevent hostile page script from canceling right-click context menu
-            e.stopImmediatePropagation();
-        }
-    }, true);
-
-    // 4. Guaranteed Copy Handler: Ensure selected text is written to clipboard directly
+    // Guaranteed copy handler: Intervenes if a hostile script prevented default copy
     window.addEventListener('copy', (e) => {
         if (!currentSettings.unblock_drag) return;
-
         const selectedText = window.getSelection()?.toString();
-        if (selectedText && selectedText.length > 0) {
-            // Stop page scripts from overriding clipboard data with empty string or calling preventDefault()
-            e.stopImmediatePropagation();
+        if (selectedText && selectedText.length > 0 && e.defaultPrevented) {
             if (e.clipboardData) {
                 e.clipboardData.setData('text/plain', selectedText);
-                e.preventDefault();
             }
         }
-    }, true);
+    }, false);
 
-    // 5. Fallback Keyboard Copy Interceptor (Cmd+C / Ctrl+C)
-    window.addEventListener('keydown', (e) => {
-        if (!currentSettings.unblock_drag) return;
+    /**
+     * Robust Markdown Formatter: supports code blocks with copy buttons, bold, italic,
+     * bullet lists (without pre-wrap gaps), headers, and links.
+     */
+    function formatMarkdown(raw: string): string {
+        if (!raw) return '';
 
-        const isCopyKey = (e.metaKey || e.ctrlKey) && (e.key === 'c' || e.key === 'C');
-        if (isCopyKey) {
-            const selectedText = window.getSelection()?.toString();
-            if (selectedText && selectedText.length > 0) {
-                // Try writing to clipboard directly in case page cancels the copy event
-                navigator.clipboard?.writeText(selectedText).catch(() => {
-                });
-            }
-        }
-    }, true);
+        // 1. Temporarily extract fenced code blocks to prevent nested formatting
+        const codeBlocks: string[] = [];
+        const placeholder = '___ARGUS_CODE_BLOCK_';
 
-    function formatTextToHtml(raw: string): string {
-        const escaped = raw
+        let processed = raw.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (_match, lang, code) => {
+            const idx = codeBlocks.length;
+            const cleanLang = lang.trim() || 'code';
+            const escapedCode = code
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+
+            codeBlocks.push(`
+                <div class="argus-code-box">
+                    <div class="argus-code-bar">
+                        <span class="argus-code-lang">${cleanLang}</span>
+                        <button class="argus-code-copy-btn" data-code="${encodeURIComponent(code)}">Copy</button>
+                    </div>
+                    <pre class="argus-pre"><code>${escapedCode}</code></pre>
+                </div>
+            `);
+            return `${placeholder}${idx}___`;
+        });
+
+        // 2. Escape general text
+        processed = processed
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
 
-        // Minimalist markdown format
-        const formattedBold = escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        const formattedCode = formattedBold.replace(/`([^`]+)`/g, '<code style="background: rgba(128,128,128,0.18); padding: 1px 4px; border-radius: 3px; font-family: monospace; font-size: 0.9em;">$1</code>');
+        // 3. Inline formatting
+        processed = processed.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        processed = processed.replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, '<em>$1</em>');
+        processed = processed.replace(/`([^`]+)`/g, '<code class="argus-inline-code">$1</code>');
 
-        const lines = formattedCode.split('\n');
-        const processedLines = lines.map(line => {
+        // 4. Headers and Bullet lists
+        const lines = processed.split('\n');
+        const formattedLines = lines.map(line => {
             const trimmed = line.trim();
-            if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
-                return `<div style="padding-left: 12px; position: relative;"><span style="position: absolute; left: 2px;">•</span>${trimmed.substring(2)}</div>`;
+            if (trimmed.startsWith('### ')) {
+                return `<div class="argus-h3">${trimmed.substring(4)}</div>`;
+            }
+            if (trimmed.startsWith('## ')) {
+                return `<div class="argus-h2">${trimmed.substring(3)}</div>`;
+            }
+            if (trimmed.startsWith('# ')) {
+                return `<div class="argus-h1">${trimmed.substring(2)}</div>`;
+            }
+            if (trimmed.startsWith('* ') || trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
+                const text = trimmed.replace(/^(\*|-|•)\s+/, '');
+                return `<div class="argus-list-item"><span class="argus-bullet">•</span><span class="argus-list-text">${text}</span></div>`;
             }
             return line;
         });
 
-        return processedLines.join('\n');
+        let result = formattedLines.join('\n');
+
+        // 5. Restore code blocks
+        result = result.replace(new RegExp(`${placeholder}(\\d+)___`, 'g'), (_match, idx) => {
+            return codeBlocks[parseInt(idx, 10)] || '';
+        });
+
+        return result;
     }
 
-    function ensureStylesInjected(): void {
-        if (document.getElementById(`${OVERLAY_ID}-style`)) return;
+    function ensureStylesInjected(root: ShadowRoot): void {
+        if (root.getElementById(`${OVERLAY_ID}-style`)) return;
 
         const style = document.createElement('style');
         style.id = `${OVERLAY_ID}-style`;
         style.textContent = `
+            * {
+                box-sizing: border-box !important;
+            }
             #${OVERLAY_ID} {
                 box-sizing: border-box !important;
                 font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
                 margin: 0 !important;
-                padding: 4px 8px 8px 8px !important;
+                padding: 6px 10px 10px 10px !important;
+                display: flex !important;
                 flex-direction: column !important;
                 user-select: text !important;
                 -webkit-user-select: text !important;
-                box-shadow: none !important;
-                border: none !important;
+                box-shadow: 0 10px 35px rgba(0, 0, 0, 0.45) !important;
+                border: 1px solid rgba(255, 255, 255, 0.1) !important;
                 outline: none !important;
                 position: fixed !important;
                 pointer-events: auto !important;
+                z-index: 2147483647 !important;
+                transition: opacity 0.12s ease !important;
             }
             #${OVERLAY_ID}.argus-hidden,
             #${OVERLAY_ID}[hidden] {
@@ -188,12 +229,6 @@ if (typeof window.argusInjected === 'undefined') {
                 visibility: hidden !important;
                 opacity: 0 !important;
                 pointer-events: none !important;
-            }
-            #${OVERLAY_ID}:not(.argus-hidden):not([hidden]) {
-                display: flex !important;
-            }
-            #${OVERLAY_ID} * {
-                box-sizing: border-box !important;
             }
             #${OVERLAY_ID} ::selection {
                 background: rgba(99, 102, 241, 0.45) !important;
@@ -204,57 +239,63 @@ if (typeof window.argusInjected === 'undefined') {
                 align-items: center !important;
                 justify-content: space-between !important;
                 width: 100% !important;
-                height: 14px !important;
+                height: 18px !important;
                 flex-shrink: 0 !important;
-                margin-bottom: 2px !important;
+                margin-bottom: 4px !important;
                 user-select: none !important;
                 -webkit-user-select: none !important;
             }
             #${OVERLAY_ID}-drag-bar {
-                height: 14px !important;
+                height: 18px !important;
                 flex: 1 !important;
                 cursor: grab !important;
                 display: flex !important;
                 align-items: center !important;
-                justify-content: center !important;
-                opacity: 0.25 !important;
+                justify-content: flex-start !important;
+                opacity: 0.35 !important;
                 transition: opacity 0.15s ease !important;
-                padding: 2px 0 !important;
+                padding: 0 4px !important;
             }
-            #${OVERLAY_ID}:hover #${OVERLAY_ID}-drag-bar,
-            #${OVERLAY_ID}-drag-bar:hover {
+            #${OVERLAY_ID}:hover #${OVERLAY_ID}-drag-bar {
                 opacity: 0.8 !important;
             }
             #${OVERLAY_ID}-drag-bar::after {
                 content: '' !important;
-                width: 28px !important;
-                height: 2px !important;
+                width: 24px !important;
+                height: 3px !important;
                 background-color: currentColor !important;
                 border-radius: 2px !important;
-                opacity: 0.6 !important;
+                opacity: 0.7 !important;
             }
             #${OVERLAY_ID}-drag-bar:active {
                 cursor: grabbing !important;
             }
-            #${OVERLAY_ID}-close-btn {
-                width: 16px !important;
-                height: 14px !important;
+            .argus-btn-group {
+                display: flex !important;
+                align-items: center !important;
+                gap: 4px !important;
+            }
+            .argus-icon-btn {
+                width: 18px !important;
+                height: 18px !important;
                 cursor: pointer !important;
                 display: flex !important;
                 align-items: center !important;
                 justify-content: center !important;
-                font-size: 14px !important;
+                font-size: 12px !important;
                 line-height: 1 !important;
-                opacity: 0.25 !important;
+                opacity: 0.35 !important;
                 transition: opacity 0.15s ease, background 0.15s ease !important;
-                border-radius: 3px !important;
-                margin-left: 4px !important;
+                border-radius: 4px !important;
                 color: currentColor !important;
+                background: transparent !important;
+                border: none !important;
+                padding: 0 !important;
             }
-            #${OVERLAY_ID}:hover #${OVERLAY_ID}-close-btn {
-                opacity: 0.6 !important;
+            #${OVERLAY_ID}:hover .argus-icon-btn {
+                opacity: 0.65 !important;
             }
-            #${OVERLAY_ID}-close-btn:hover {
+            .argus-icon-btn:hover {
                 opacity: 1 !important;
                 background: rgba(128, 128, 128, 0.25) !important;
             }
@@ -264,21 +305,117 @@ if (typeof window.argusInjected === 'undefined') {
                 cursor: text !important;
                 white-space: pre-wrap !important;
                 word-break: break-word !important;
-                line-height: 1.4 !important;
+                line-height: 1.45 !important;
                 overflow-y: auto !important;
                 flex: 1 !important;
                 min-height: 0 !important;
                 scrollbar-width: thin !important;
-                scrollbar-color: rgba(128, 128, 128, 0.15) transparent !important;
-                pointer-events: auto !important;
+                scrollbar-color: rgba(128, 128, 128, 0.2) transparent !important;
+                padding-right: 2px !important;
             }
             #${OVERLAY_ID}-content::-webkit-scrollbar {
-                width: 3px !important;
+                width: 4px !important;
             }
             #${OVERLAY_ID}-content::-webkit-scrollbar-thumb {
-                background: rgba(128, 128, 128, 0.2) !important;
+                background: rgba(128, 128, 128, 0.3) !important;
                 border-radius: 2px !important;
             }
+            /* Code block styling */
+            .argus-code-box {
+                background: rgba(0, 0, 0, 0.35) !important;
+                border: 1px solid rgba(128, 128, 128, 0.25) !important;
+                border-radius: 6px !important;
+                margin: 6px 0 !important;
+                overflow: hidden !important;
+            }
+            .argus-code-bar {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                background: rgba(128, 128, 128, 0.12) !important;
+                padding: 2px 8px !important;
+                font-size: 0.72rem !important;
+                font-family: monospace !important;
+                opacity: 0.75 !important;
+            }
+            .argus-code-copy-btn {
+                background: transparent !important;
+                border: none !important;
+                color: currentColor !important;
+                cursor: pointer !important;
+                font-size: 0.7rem !important;
+                padding: 1px 5px !important;
+                border-radius: 3px !important;
+                opacity: 0.8 !important;
+            }
+            .argus-code-copy-btn:hover {
+                background: rgba(255, 255, 255, 0.15) !important;
+                opacity: 1 !important;
+            }
+            .argus-pre {
+                margin: 0 !important;
+                padding: 6px 8px !important;
+                overflow-x: auto !important;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+                font-size: 0.88em !important;
+                line-height: 1.35 !important;
+            }
+            .argus-inline-code {
+                background: rgba(128, 128, 128, 0.2) !important;
+                padding: 1px 4px !important;
+                border-radius: 3px !important;
+                font-family: monospace !important;
+                font-size: 0.9em !important;
+            }
+            .argus-list-item {
+                display: flex !important;
+                align-items: flex-start !important;
+                margin: 2px 0 !important;
+                line-height: 1.4 !important;
+            }
+            .argus-bullet {
+                margin-right: 6px !important;
+                opacity: 0.6 !important;
+            }
+            .argus-h1, .argus-h2, .argus-h3 {
+                font-weight: 700 !important;
+                margin: 6px 0 2px 0 !important;
+            }
+            .argus-h1 { font-size: 1.15em !important; }
+            .argus-h2 { font-size: 1.05em !important; }
+            .argus-h3 { font-size: 0.95em !important; opacity: 0.9 !important; }
+
+            /* Interactive Follow-up Input Bar */
+            #${OVERLAY_ID}-prompt-bar {
+                display: flex !important;
+                align-items: center !important;
+                gap: 6px !important;
+                margin-top: 6px !important;
+                padding-top: 4px !important;
+                border-top: 1px solid rgba(128, 128, 128, 0.15) !important;
+                flex-shrink: 0 !important;
+            }
+            #${OVERLAY_ID}-prompt-input {
+                flex: 1 !important;
+                background: rgba(128, 128, 128, 0.12) !important;
+                border: 1px solid rgba(128, 128, 128, 0.2) !important;
+                border-radius: 4px !important;
+                padding: 4px 8px !important;
+                color: inherit !important;
+                font-size: 0.82em !important;
+                outline: none !important;
+                transition: border-color 0.15s ease !important;
+            }
+            #${OVERLAY_ID}-prompt-input:focus {
+                border-color: rgba(99, 102, 241, 0.7) !important;
+                background: rgba(128, 128, 128, 0.18) !important;
+            }
+            #${OVERLAY_ID}-prompt-input::placeholder {
+                color: currentColor !important;
+                opacity: 0.4 !important;
+            }
+
+            /* Resizer Corner */
             #${OVERLAY_ID}-resizer {
                 position: absolute !important;
                 right: 1px !important;
@@ -290,7 +427,7 @@ if (typeof window.argusInjected === 'undefined') {
                 -webkit-user-select: none !important;
                 z-index: 100 !important;
                 background: linear-gradient(135deg, transparent 0%, transparent 40%, currentColor 40%, currentColor 50%, transparent 50%, transparent 68%, currentColor 68%, currentColor 78%, transparent 78%, transparent 100%) !important;
-                opacity: 0.35 !important;
+                opacity: 0.3 !important;
                 transition: opacity 0.15s ease !important;
             }
             #${OVERLAY_ID}:hover #${OVERLAY_ID}-resizer,
@@ -299,23 +436,23 @@ if (typeof window.argusInjected === 'undefined') {
             }
             .argus-stealth-dot {
                 display: inline-block !important;
-                width: 4px !important;
-                height: 4px !important;
+                width: 5px !important;
+                height: 5px !important;
                 background-color: currentColor !important;
                 border-radius: 50% !important;
-                opacity: 0.4 !important;
+                opacity: 0.5 !important;
                 animation: argus-pulse 1.2s infinite ease-in-out !important;
-                margin-right: 4px !important;
+                margin-right: 6px !important;
             }
             @keyframes argus-pulse {
-                0%, 100% { opacity: 0.1; }
-                50% { opacity: 0.6; }
+                0%, 100% { opacity: 0.2; transform: scale(0.9); }
+                50% { opacity: 0.8; transform: scale(1.1); }
             }
         `;
-        (document.head || document.documentElement).appendChild(style);
+        root.appendChild(style);
     }
 
-    function makeDraggable(overlay: HTMLElement): void {
+    function makeDraggable(overlay: HTMLElement, root: ShadowRoot): void {
         let isDragging = false;
         let isResizing = false;
         let startX = 0, startY = 0;
@@ -323,18 +460,20 @@ if (typeof window.argusInjected === 'undefined') {
         let startWidth = 0, startHeight = 0;
 
         overlay.addEventListener('mousedown', (e) => {
-            const resizer = document.getElementById(`${OVERLAY_ID}-resizer`);
-            const dragBar = document.getElementById(`${OVERLAY_ID}-drag-bar`);
-            const closeBtn = document.getElementById(`${OVERLAY_ID}-close-btn`);
-            const rect = overlay.getBoundingClientRect();
+            const target = e.target as HTMLElement | null;
+            if (!target) return;
 
-            // 0. Ignore if close button was clicked
-            if (closeBtn && (closeBtn === e.target || closeBtn.contains(e.target as Node))) {
+            // Ignore clicks on buttons or input bar
+            if (target.closest('.argus-icon-btn') || target.closest('#' + OVERLAY_ID + '-prompt-bar')) {
                 return;
             }
 
+            const resizer = root.getElementById(`${OVERLAY_ID}-resizer`);
+            const dragBar = root.getElementById(`${OVERLAY_ID}-drag-bar`);
+            const rect = overlay.getBoundingClientRect();
+
             // 1. Resize Handle (bottom-right)
-            const isResizerClick = resizer && (resizer === e.target || resizer.contains(e.target as Node));
+            const isResizerClick = resizer && (resizer === target || resizer.contains(target));
             const isCornerClick = e.clientX > rect.right - 18 && e.clientY > rect.bottom - 18;
 
             if (isResizerClick || isCornerClick) {
@@ -350,11 +489,11 @@ if (typeof window.argusInjected === 'undefined') {
                 return;
             }
 
-            // 2. Drag & Reposition (Top drag bar, Alt/Shift/Meta key, or outer edges)
-            const isDragBar = dragBar && (dragBar === e.target || dragBar.contains(e.target as Node));
+            // 2. Drag & Reposition
+            const isDragBar = dragBar && (dragBar === target || dragBar.contains(target));
             const isModifierPressed = e.altKey || e.shiftKey || e.metaKey || e.ctrlKey;
-            const contentEl = document.getElementById(`${OVERLAY_ID}-content`);
-            const isOutsideText = contentEl && (contentEl !== e.target && !contentEl.contains(e.target as Node));
+            const contentEl = root.getElementById(`${OVERLAY_ID}-content`);
+            const isOutsideText = contentEl && (contentEl !== target && !contentEl.contains(target));
 
             if (isDragBar || isModifierPressed || isOutsideText) {
                 isDragging = true;
@@ -362,17 +501,15 @@ if (typeof window.argusInjected === 'undefined') {
                 startY = e.clientY;
                 origX = overlay.offsetLeft;
                 origY = overlay.offsetTop;
-                document.body.style.cursor = 'grabbing';
                 e.preventDefault();
                 e.stopPropagation();
             }
-            // Otherwise, native drag-to-select text works smoothly
         });
 
         window.addEventListener('mousemove', (e) => {
             if (isResizing) {
-                const newWidth = Math.max(120, Math.min(window.innerWidth - origX - 10, startWidth + (e.clientX - startX)));
-                const newHeight = Math.max(60, Math.min(window.innerHeight - origY - 10, startHeight + (e.clientY - startY)));
+                const newWidth = Math.max(160, Math.min(window.innerWidth - origX - 10, startWidth + (e.clientX - startX)));
+                const newHeight = Math.max(80, Math.min(window.innerHeight - origY - 10, startHeight + (e.clientY - startY)));
                 overlay.style.width = `${newWidth}px`;
                 overlay.style.height = `${newHeight}px`;
                 overlay.style.maxWidth = `${newWidth}px`;
@@ -393,19 +530,16 @@ if (typeof window.argusInjected === 'undefined') {
         window.addEventListener('mouseup', () => {
             if (isResizing) {
                 isResizing = false;
-                const finalWidth = overlay.offsetWidth;
-                const finalHeight = overlay.offsetHeight;
-                void saveSize(finalWidth, finalHeight);
+                void saveSize(overlay.offsetWidth, overlay.offsetHeight);
             } else if (isDragging) {
                 isDragging = false;
-                document.body.style.cursor = '';
                 void savePosition(overlay.offsetLeft, overlay.offsetTop);
             }
         }, {capture: true});
     }
 
-    function attachHeaderEvents(): void {
-        const closeBtn = document.getElementById(`${OVERLAY_ID}-close-btn`);
+    function attachHeaderAndInputEvents(root: ShadowRoot): void {
+        const closeBtn = root.getElementById(`${OVERLAY_ID}-close-btn`);
         if (closeBtn) {
             closeBtn.onclick = (e) => {
                 e.preventDefault();
@@ -414,12 +548,90 @@ if (typeof window.argusInjected === 'undefined') {
             };
         }
 
-        const dragBar = document.getElementById(`${OVERLAY_ID}-drag-bar`);
+        const copyBtn = root.getElementById(`${OVERLAY_ID}-copy-btn`);
+        if (copyBtn) {
+            copyBtn.onclick = async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (latestRawText) {
+                    try {
+                        await navigator.clipboard.writeText(latestRawText);
+                        const origText = copyBtn.textContent;
+                        copyBtn.textContent = '✓';
+                        setTimeout(() => {
+                            copyBtn.textContent = origText;
+                        }, 1200);
+                    } catch {
+                        // Clipboard fallback
+                    }
+                }
+            };
+        }
+
+        const clearBtn = root.getElementById(`${OVERLAY_ID}-clear-btn`);
+        if (clearBtn) {
+            clearBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const contentEl = root.getElementById(`${OVERLAY_ID}-content`);
+                if (contentEl) {
+                    contentEl.innerHTML = 'Ready. Press shortcut to capture.';
+                    latestRawText = '';
+                }
+            };
+        }
+
+        const dragBar = root.getElementById(`${OVERLAY_ID}-drag-bar`);
         if (dragBar) {
             dragBar.ondblclick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 hideOverlay();
+            };
+        }
+
+        // Code block copy buttons
+        const contentEl = root.getElementById(`${OVERLAY_ID}-content`);
+        if (contentEl) {
+            contentEl.onclick = async (e) => {
+                const target = e.target as HTMLElement | null;
+                if (target && target.classList.contains('argus-code-copy-btn')) {
+                    const encodedCode = target.getAttribute('data-code');
+                    if (encodedCode) {
+                        try {
+                            const code = decodeURIComponent(encodedCode);
+                            await navigator.clipboard.writeText(code);
+                            target.textContent = 'Copied!';
+                            setTimeout(() => {
+                                target.textContent = 'Copy';
+                            }, 1500);
+                        } catch {
+                            // Copy failure fallback
+                        }
+                    }
+                }
+            };
+        }
+
+        // Prompt input: Enter triggers custom follow-up query
+        const promptInput = root.getElementById(`${OVERLAY_ID}-prompt-input`) as HTMLInputElement | null;
+        if (promptInput) {
+            promptInput.onkeydown = (e) => {
+                e.stopPropagation();
+                if (e.key === 'Enter') {
+                    const text = promptInput.value.trim();
+                    if (text.length > 0) {
+                        promptInput.value = '';
+                        void showOverlay('Thinking...', 'loading');
+                        try {
+                            void chrome.runtime.sendMessage(MessageFactory.requestCustomQuery(text));
+                        } catch (err) {
+                            console.error('[Argus] Failed to send query:', err);
+                        }
+                    }
+                } else if (e.key === 'Escape') {
+                    promptInput.blur();
+                }
             };
         }
     }
@@ -432,17 +644,16 @@ if (typeof window.argusInjected === 'undefined') {
         if (overlay.style.display === 'none') {
             return false;
         }
-        const computed = window.getComputedStyle(overlay);
-        return computed.display !== 'none' && computed.visibility !== 'hidden' && computed.opacity !== '0';
+        return true;
     }
 
     function hideOverlay(): void {
-        const overlay = document.getElementById(OVERLAY_ID);
+        const root = ensureShadowRoot();
+        const overlay = root.getElementById(OVERLAY_ID);
         if (overlay) {
             overlay.classList.add('argus-hidden');
             overlay.setAttribute('hidden', '');
             overlay.style.setProperty('display', 'none', 'important');
-            overlay.style.setProperty('visibility', 'hidden', 'important');
         }
     }
 
@@ -450,29 +661,31 @@ if (typeof window.argusInjected === 'undefined') {
         overlay.classList.remove('argus-hidden');
         overlay.removeAttribute('hidden');
         overlay.style.setProperty('display', 'flex', 'important');
-        overlay.style.setProperty('visibility', 'visible', 'important');
     }
 
     async function showOverlay(text: string, status?: 'loading' | 'success' | 'error' | 'info'): Promise<void> {
-        ensureStylesInjected();
+        const root = ensureShadowRoot();
+        ensureStylesInjected(root);
         const s = await loadSettings();
 
-        let overlay = document.getElementById(OVERLAY_ID);
+        latestRawText = text;
+
+        let overlay = root.getElementById(OVERLAY_ID);
         const isNew = !overlay;
 
         if (!overlay) {
             overlay = document.createElement('div');
             overlay.id = OVERLAY_ID;
-            document.body.appendChild(overlay);
+            root.appendChild(overlay);
         }
 
         showOverlayElement(overlay);
 
-        // Positioning
-        const defaultX = Math.max(8, window.innerWidth - (s.style_maxWidth || 380) - 12);
-        const defaultY = Math.max(8, window.innerHeight - (s.style_maxHeight || 280) - 12);
-        const posX = s.overlay_x >= 0 ? Math.min(s.overlay_x, window.innerWidth - 40) : defaultX;
-        const posY = s.overlay_y >= 0 ? Math.min(s.overlay_y, window.innerHeight - 40) : defaultY;
+        // Viewport clamping & positioning
+        const defaultX = Math.max(8, window.innerWidth - (s.style_maxWidth || 380) - 16);
+        const defaultY = Math.max(8, window.innerHeight - (s.style_maxHeight || 280) - 16);
+        const posX = s.overlay_x >= 0 ? Math.min(s.overlay_x, window.innerWidth - 60) : defaultX;
+        const posY = s.overlay_y >= 0 ? Math.min(s.overlay_y, window.innerHeight - 60) : defaultY;
 
         overlay.style.left = `${posX}px`;
         overlay.style.top = `${posY}px`;
@@ -483,40 +696,57 @@ if (typeof window.argusInjected === 'undefined') {
         overlay.style.background = hexToRgba(s.style_bgColor, s.style_bgOpacity);
         overlay.style.color = s.style_textColor;
         overlay.style.fontSize = `${s.style_fontSize}px`;
-        overlay.style.borderRadius = s.style_bgOpacity > 0 ? '4px' : '0px';
-        overlay.style.boxShadow = 'none';
-        overlay.style.border = 'none';
-        overlay.style.backdropFilter = 'none';
-        overlay.style.zIndex = '2147483647';
-        overlay.style.overflow = 'hidden';
+        overlay.style.borderRadius = s.style_bgOpacity > 0 ? '6px' : '0px';
 
-        // Minimalist Layout: Header with drag bar & close button + Content + Resizer Hitbox
-        overlay.innerHTML = `
-            <div id="${OVERLAY_ID}-header">
-                <div id="${OVERLAY_ID}-drag-bar" title="Drag to move (Double-click to hide)"></div>
-                <div id="${OVERLAY_ID}-close-btn" title="Close overlay (Esc)">×</div>
-            </div>
-            <div id="${OVERLAY_ID}-content"></div>
-            <div id="${OVERLAY_ID}-resizer" title="Drag corner to resize"></div>
-        `;
-
-        attachHeaderEvents();
-
-        const contentEl = document.getElementById(`${OVERLAY_ID}-content`)!;
-
-        if (status === 'loading') {
-            contentEl.innerHTML = `<span class="argus-stealth-dot"></span>${formatTextToHtml(text)}`;
-        } else {
-            contentEl.innerHTML = formatTextToHtml(text);
+        // Set structure only if new or DOM reset needed
+        if (isNew || !root.getElementById(`${OVERLAY_ID}-content`)) {
+            overlay.innerHTML = `
+                <div id="${OVERLAY_ID}-header">
+                    <div id="${OVERLAY_ID}-drag-bar" title="Drag to move (Double-click to hide)"></div>
+                    <div class="argus-btn-group">
+                        <button id="${OVERLAY_ID}-copy-btn" class="argus-icon-btn" title="Copy text (One-click)">📋</button>
+                        <button id="${OVERLAY_ID}-clear-btn" class="argus-icon-btn" title="Clear overlay">🧹</button>
+                        <button id="${OVERLAY_ID}-close-btn" class="argus-icon-btn" title="Close (Esc)">×</button>
+                    </div>
+                </div>
+                <div id="${OVERLAY_ID}-content"></div>
+                <div id="${OVERLAY_ID}-prompt-bar">
+                    <input id="${OVERLAY_ID}-prompt-input" type="text" placeholder="Ask follow-up question (Enter)..." />
+                </div>
+                <div id="${OVERLAY_ID}-resizer" title="Drag corner to resize"></div>
+            `;
+            attachHeaderAndInputEvents(root);
+            makeDraggable(overlay, root);
         }
 
-        if (isNew) {
-            makeDraggable(overlay);
+        const contentEl = root.getElementById(`${OVERLAY_ID}-content`)!;
+
+        if (status === 'loading') {
+            contentEl.innerHTML = `<span class="argus-stealth-dot"></span>${formatMarkdown(text)}`;
+        } else {
+            contentEl.innerHTML = formatMarkdown(text);
+        }
+    }
+
+    function updateStreamingText(fullText: string): void {
+        const root = ensureShadowRoot();
+        const overlay = root.getElementById(OVERLAY_ID);
+        if (!overlay || !isOverlayVisible(overlay)) {
+            void showOverlay(fullText, 'success');
+            return;
+        }
+
+        latestRawText = fullText;
+        const contentEl = root.getElementById(`${OVERLAY_ID}-content`);
+        if (contentEl) {
+            contentEl.innerHTML = formatMarkdown(fullText);
+            contentEl.scrollTop = contentEl.scrollHeight;
         }
     }
 
     function toggleOverlay(): void {
-        const overlay = document.getElementById(OVERLAY_ID);
+        const root = ensureShadowRoot();
+        const overlay = root.getElementById(OVERLAY_ID);
         if (!overlay) {
             void showOverlay('Ready. Press shortcut to capture.');
             return;
@@ -528,9 +758,10 @@ if (typeof window.argusInjected === 'undefined') {
         }
     }
 
-    // Dismiss with Escape key or keyboard shortcuts (Capturing phase ensures we beat hostile page listeners)
+    // Dismiss with Escape key or keyboard shortcuts
     window.addEventListener('keydown', (e) => {
-        const overlay = document.getElementById(OVERLAY_ID);
+        const root = ensureShadowRoot();
+        const overlay = root.getElementById(OVERLAY_ID);
         const overlayVisible = isOverlayVisible(overlay);
 
         // 1. Escape key: Dismiss overlay immediately if visible
@@ -547,8 +778,7 @@ if (typeof window.argusInjected === 'undefined') {
         const isMod = e.metaKey || e.ctrlKey;
         const key = e.key.toLowerCase();
 
-        // 2. Direct in-page fallback shortcut capture for toggling
-        // Matches Cmd/Ctrl+Shift+X, Cmd/Ctrl+Shift+D, or Alt/Option+Shift+D
+        // 2. In-page fallback shortcut for toggle: Cmd/Ctrl+Shift+X or Cmd/Ctrl+Shift+D
         if ((isShift && isMod && (key === 'x' || key === 'd')) || (isShift && e.altKey && key === 'd')) {
             toggleOverlay();
             e.preventDefault();
@@ -556,10 +786,10 @@ if (typeof window.argusInjected === 'undefined') {
             return;
         }
 
-        // 3. Direct in-page capture shortcut: Cmd/Ctrl+Shift+E
+        // 3. In-page fallback shortcut for capture: Cmd/Ctrl+Shift+E
         if (isShift && isMod && key === 'e') {
             try {
-                void chrome.runtime.sendMessage({type: 'REQUEST_CAPTURE'});
+                void chrome.runtime.sendMessage(MessageFactory.requestCapture());
             } catch {
                 // Ignore if runtime unavailable
             }
@@ -568,10 +798,10 @@ if (typeof window.argusInjected === 'undefined') {
             return;
         }
 
-        // 4. Direct in-page new session shortcut: Cmd/Ctrl+Shift+N
+        // 4. In-page fallback shortcut for new session: Cmd/Ctrl+Shift+N
         if (isShift && isMod && key === 'n') {
             try {
-                void chrome.runtime.sendMessage({type: 'REQUEST_NEW_SESSION'});
+                void chrome.runtime.sendMessage(MessageFactory.requestNewSession());
             } catch {
                 // Ignore
             }
@@ -588,7 +818,10 @@ if (typeof window.argusInjected === 'undefined') {
             return false;
         }
 
-        if (request.type === 'displayResult') {
+        if (request.type === 'displayStreamChunk') {
+            updateStreamingText(request.fullText);
+            sendResponse({status: 'ok'});
+        } else if (request.type === 'displayResult') {
             void showOverlay(request.text, request.status);
             sendResponse({status: 'ok'});
         } else if (request.type === 'toggleOverlay') {
@@ -612,14 +845,15 @@ if (typeof window.argusInjected === 'undefined') {
                 applyPageDragUnblocker(Boolean(changes.unblock_drag.newValue));
             }
 
-            const overlay = document.getElementById(OVERLAY_ID);
+            const root = ensureShadowRoot();
+            const overlay = root.getElementById(OVERLAY_ID);
             if (overlay && isOverlayVisible(overlay)) {
                 const styleKeys = ['style_fontSize', 'style_textColor', 'style_bgColor', 'style_bgOpacity', 'style_maxWidth', 'style_maxHeight', 'stealth_mode'];
                 const hasStyleChange = Object.keys(changes).some(key => styleKeys.includes(key));
                 if (hasStyleChange) {
-                    const contentEl = document.getElementById(`${OVERLAY_ID}-content`);
+                    const contentEl = root.getElementById(`${OVERLAY_ID}-content`);
                     if (contentEl) {
-                        void showOverlay(contentEl.innerText || '');
+                        void showOverlay(latestRawText || contentEl.innerText || '');
                     }
                 }
             }

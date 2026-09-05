@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {listModels, queryGemini, testApiKey} from '../gemini-adapter';
+import {listModels, normalizeHistoryForGemini, queryGemini, testApiKey} from '../gemini-adapter';
 import {DEFAULT_SETTINGS, FALLBACK_MODELS} from '../../types/settings';
 
 describe('gemini-adapter', () => {
@@ -24,5 +24,22 @@ describe('gemini-adapter', () => {
         const settings = {...DEFAULT_SETTINGS, gemini_apiKey: 'AIzaSyValidLengthKeyForTest12345678'};
         const result = await queryGemini('not-a-valid-data-url', settings);
         expect(result).toContain('Invalid image data URL');
+    });
+
+    it('normalizes history correctly: starts with user, strictly alternates, and ends before user turn', () => {
+        // If history starts with assistant, leading assistant should be dropped
+        const rawHistory = [
+            {role: 'assistant' as const, content: 'Initial hello', timestamp: 1},
+            {role: 'user' as const, content: 'Question 1', timestamp: 2},
+            {role: 'assistant' as const, content: 'Answer 1', timestamp: 3},
+            {role: 'user' as const, content: 'Question 2', timestamp: 4}
+        ];
+        const normalized = normalizeHistoryForGemini(rawHistory);
+        // Leading assistant dropped, trailing user dropped so current user turn can be appended without duplicate
+        expect(normalized.length).toBe(2);
+        expect(normalized[0].role).toBe('user');
+        expect(normalized[0].parts[0].text).toBe('Question 1');
+        expect(normalized[1].role).toBe('model');
+        expect(normalized[1].parts[0].text).toBe('Answer 1');
     });
 });
