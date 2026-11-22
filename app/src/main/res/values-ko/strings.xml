@@ -1,0 +1,240 @@
+<resources>
+    <string name="app_name">Argus</string>
+    <string name="app_tagline">시험장 무선 부정행위 감독 스캐너</string>
+
+    <!-- Navigation & Top Bar -->
+    <string name="nav_scanner">스캐너</string>
+    <string name="nav_history">스캔 기록</string>
+    <string name="nav_stats">통계</string>
+    <string name="action_stop_scan">중지 및 저장</string>
+    <string name="action_language">언어</string>
+    <string name="action_theme">테마</string>
+    <string name="lang_system">시스템 기본값</string>
+    <string name="lang_korean">한국어 (Korean)</string>
+    <string name="lang_english">English</string>
+    <string name="theme_system">시스템 테마</string>
+    <string name="theme_light">라이트 모드</string>
+    <string name="theme_dark">다크 모드</string>
+
+    <!-- Scan Phases -->
+    <string name="phase_idle">대기 중</string>
+    <string name="phase_baseline">PHASE 1 · 입실 전 기준선 수집 (%1$d초)</string>
+    <string name="phase_monitoring">PHASE 2 · 시험 중 실시간 차분 감시</string>
+    <string name="phase_radar">PHASE 3 · 근접 레이더 위치 추적</string>
+
+    <!-- Warnings & Errors -->
+    <string name="wifi_throttle_warning">Wi-Fi 스캔 제한 감지됨 — 5초 간격 실시간 감시를 위해 개발자 옵션에서 &quot;Wi-Fi 스캔 제한&quot;을 꺼주세요.</string>
+    <string name="action_settings">설정</string>
+    <string name="action_dismiss">닫기</string>
+    <string name="error_ble_unavailable">블루투스가 꺼져 있거나 BLE를 지원하지 않는 기기입니다.</string>
+    <string name="error_ble_scan_failed">BLE 스캔 실패 (errorCode=%1$d)</string>
+
+    <!-- Permission Screen -->
+    <string name="perm_title">Argus 감독관 스캐너</string>
+    <string name="perm_subtitle">시험장 내 숨겨진 BLE 이어폰·스마트워치 및 개인 Wi-Fi 핫스팟을 탐지하기 위해 아래 무선 스캔 권한이 필요합니다.</string>
+    <string name="perm_ble_title">블루투스 LE 스캔</string>
+    <string name="perm_ble_desc">주변 무선 이어폰, 스마트워치 및 BLE 비콘 신호를 탐지합니다.</string>
+    <string name="perm_location_title">정밀 위치 권한</string>
+    <string name="perm_location_desc">Android OS 정책상 Wi-Fi 및 BLE 신호 세기(RSSI)를 읽기 위해 필요하며, 위치는 저장되지 않습니다.</string>
+    <string name="perm_wifi_title">주변 Wi-Fi 기기</string>
+    <string name="perm_wifi_desc">시험 중 켜지는 모바일 핫스팟 및 테더링 신호를 식별합니다.</string>
+    <string name="perm_status_granted">허용됨</string>
+    <string name="perm_status_required">필수</string>
+    <string name="perm_denied_banner">필수 권한이 거부되었습니다. 스캔을 진행하려면 모든 권한을 허용해 주세요.</string>
+    <string name="perm_btn_grant">스캔 권한 허용하기</string>
+    <string name="perm_btn_open_settings">앱 설정 열기</string>
+
+    <!-- Idle Phase -->
+    <string name="idle_hero_title">입실 전 기준선 수집 준비</string>
+    <string name="idle_hero_desc">빈 강의실 중앙에서 60초간 주변 BLE/Wi-Fi 기준선(Baseline)을 수집한 뒤, 시험 시작과 동시에 신규 기기 유입 및 급접근을 자동 감시합니다.</string>
+    <string name="idle_session_label_hint">시험실 / 세션 이름 (선택 사항)</string>
+    <string name="idle_session_label_placeholder">예: 공학관 302호 · 중간고사</string>
+    <string name="idle_btn_start">PHASE 1: 기준선 스캔 시작 (60초)</string>
+    <string name="idle_step_1_title">1. 기준선 (60초)</string>
+    <string name="idle_step_1_desc">복도·상시 신호 지문 사전 등록</string>
+    <string name="idle_step_2_title">2. 실시간 감시</string>
+    <string name="idle_step_2_desc">신규 기기 및 +15dB 급접근 포착</string>
+    <string name="idle_step_3_title">3. 레이더 추적</string>
+    <string name="idle_step_3_desc">비프음·진동으로 의심 좌석 특정</string>
+    <string name="idle_recent_sessions">저장된 최근 스캔 기록: %1$d건</string>
+    <string name="idle_view_history">기록 보기</string>
+
+    <!-- Baseline Phase -->
+    <string name="baseline_collecting">강의실 기준선 수집 중…</string>
+    <string name="baseline_devices_found">수집된 기준선 기기: %1$d대</string>
+    <string name="baseline_packets_processed">처리 패킷: %1$d (BLE %2$d · Wi-Fi %3$d)</string>
+    <string name="baseline_btn_cancel">취소</string>
+    <string name="baseline_btn_skip">모니터링 즉시 시작</string>
+    <string name="baseline_preview_title">기준선 프리뷰 (신호 세기 상위 %1$d개)</string>
+    <string name="baseline_waiting_signals">주변 BLE 및 Wi-Fi 패킷을 수신 대기 중…</string>
+
+    <!-- Monitoring Phase -->
+    <string name="monitoring_live_badge">실시간 감시</string>
+    <string name="monitoring_stats_bar">기준선 %1$d대 · 패킷 %2$d · 경과 %3$s</string>
+    <string name="monitoring_alerts_title">의심 기기 (%1$d)</string>
+    <string name="monitoring_filter_all">전체</string>
+    <string name="monitoring_filter_high_risk">고위험 (70+)</string>
+    <string name="monitoring_filter_audio">오디오/웨어러블</string>
+    <string name="monitoring_filter_ble">BLE</string>
+    <string name="monitoring_filter_wifi">Wi-Fi</string>
+    <string name="monitoring_empty_title">이상 징후 없음</string>
+    <string name="monitoring_empty_desc">5초 슬라이딩 윈도우로 신규 유입 및 급접근 신호를 실시간 감시하고 있습니다…</string>
+    <string name="monitoring_empty_filtered">선택한 필터에 해당하는 의심 기기가 없습니다.</string>
+    <string name="monitoring_finish_save">감시 종료 및 기록 저장</string>
+    <string name="alert_risk_badge">위험 %1$d</string>
+    <string name="alert_reason_new">신규 유입 (%1$d회/15s)</string>
+    <string name="alert_reason_surge">급접근 (+%1$d dB)</string>
+    <string name="alert_tag_audio">오디오/웨어러블</string>
+    <string name="alert_tag_hotspot">핫스팟/웨어러블</string>
+    <string name="alert_tap_radar">레이더 추적</string>
+    <string name="power_off_title">전원 차단 의심 로그 (%1$d)</string>
+    <string name="power_off_expand">펼치기</string>
+    <string name="power_off_collapse">접기</string>
+    <string name="power_off_row_desc">%1$s (%2$s) 신호 소실</string>
+
+    <!-- Radar Phase -->
+    <string name="radar_back_desc">목록으로 돌아가기</string>
+    <string name="radar_filtered_peak">스무딩: %1$.1f dBm · 최고: %2$d dBm</string>
+    <string name="radar_scale_far">-90 dBm (원거리)</string>
+    <string name="radar_scale_seat">-45 dBm (좌석 특정)</string>
+    <string name="radar_scale_max">-30 dBm</string>
+    <string name="radar_zone_very_close_badge">좌석 특정</string>
+    <string name="radar_zone_near_badge">근접 중</string>
+    <string name="radar_zone_far_badge">탐색 중</string>
+    <string name="radar_zone_very_close">매우 근접 (-45 dBm 이상): 현재 위치 좌석 특정 가능!</string>
+    <string name="radar_zone_near">근접 중 (-65 ~ -46 dBm): 통로를 따라 신호 증가 방향 확인</string>
+    <string name="radar_zone_far">원거리 (-65 dBm 미만): 이동하며 신호 상승 지점 탐색</string>
+    <string name="radar_sound_on">비프음 ON</string>
+    <string name="radar_sound_off">비프음 OFF</string>
+    <string name="radar_haptic_on">진동 ON</string>
+    <string name="radar_haptic_off">진동 OFF</string>
+    <string name="radar_btn_back">의심 기기 목록으로 돌아가기</string>
+    <string name="radar_sparkline_title">최근 RSSI 신호 추이</string>
+
+    <!-- History Screen -->
+    <string name="history_title">스캔 기록</string>
+    <string name="history_subtitle">저장된 세션 %1$d건</string>
+    <string name="history_search_hint">강의실, 기기명, 제조사 검색…</string>
+    <string name="history_filter_all">전체</string>
+    <string name="history_filter_local">내 기기</string>
+    <string name="history_filter_imported">불러옴</string>
+    <string name="history_filter_alerts">경고 포함</string>
+    <string name="history_action_export_json">JSON 내보내기</string>
+    <string name="history_action_export_csv">CSV 내보내기</string>
+    <string name="history_action_import">불러오기</string>
+    <string name="history_empty_title">저장된 스캔 기록이 없습니다</string>
+    <string name="history_empty_desc">시험 감시를 완료해 기록을 저장하거나, 이전에 내보낸 Argus JSON 파일을 불러와 기록과 통계를 확인하세요.</string>
+    <string name="history_badge_imported">불러옴</string>
+    <string name="history_badge_local">로컬</string>
+    <string name="history_card_duration">시간 %1$s</string>
+    <string name="history_card_baseline">기준선 %1$d대</string>
+    <string name="history_card_alerts">의심 %1$d건</string>
+    <string name="history_card_peak_risk">최고 위험 %1$d</string>
+    <string name="history_detail_title">세션 상세 기록</string>
+    <string name="history_detail_rename">이름 변경</string>
+    <string name="history_detail_delete">삭제</string>
+    <string name="history_detail_export_json">이 세션 JSON 내보내기</string>
+    <string name="history_detail_export_csv">이 세션 CSV 내보내기</string>
+    <string name="history_detail_share">요약 공유</string>
+    <string name="history_detail_packets">패킷: %1$d (BLE %2$d / Wi-Fi %3$d)</string>
+    <string name="history_detail_power_off">전원 차단 의심 로그 (%1$d)</string>
+    <string name="history_detail_alerts">탐지된 의심 기기 (%1$d)</string>
+    <string name="history_detail_no_alerts">이 세션에서는 의심 기기가 탐지되지 않았습니다.</string>
+    <string name="history_rename_title">세션 이름 변경</string>
+    <string name="history_delete_confirm_title">세션을 삭제할까요?</string>
+    <string name="history_delete_confirm_msg">&quot;%1$s&quot; 기록을 영구적으로 삭제합니다.</string>
+    <string name="action_cancel">취소</string>
+    <string name="action_save">저장</string>
+    <string name="action_confirm_delete">삭제</string>
+
+    <!-- Snackbars & Messages -->
+    <string name="msg_session_saved">스캔 기록이 저장되었습니다.</string>
+    <string name="msg_export_success">스캔 기록 %1$d건을 내보냈습니다.</string>
+    <string name="msg_export_empty">내보낼 스캔 기록이 없습니다.</string>
+    <string name="msg_export_failed">파일 내보내기 실패: %1$s</string>
+    <string name="msg_import_success">새 기록 %1$d건을 불러왔습니다 (중복 %2$d건 건너뜀).</string>
+    <string name="msg_import_failed">불러오기 실패: 올바른 Argus JSON 파일이 아닙니다.</string>
+    <string name="msg_session_deleted">세션 기록이 삭제되었습니다.</string>
+
+    <!-- Statistics Screen -->
+    <string name="stats_title">탐지 통계</string>
+    <string name="stats_subtitle">세션 %1$d건 기준 종합 분석</string>
+    <string name="stats_range_all">전체 기간</string>
+    <string name="stats_range_7d">최근 7일</string>
+    <string name="stats_range_30d">최근 30일</string>
+    <string name="stats_empty_title">표시할 통계 데이터가 없습니다</string>
+    <string name="stats_empty_desc">스캔 세션을 완료하여 저장하거나 JSON 기록을 불러오면 추이, 기기 유형, 위험도 분포 통계를 확인할 수 있습니다.</string>
+    <string name="stats_kpi_sessions">총 세션</string>
+    <string name="stats_kpi_watch_time">총 감시 시간</string>
+    <string name="stats_kpi_alerts">총 의심 탐지</string>
+    <string name="stats_kpi_high_risk">고위험 (70+)</string>
+    <string name="stats_kpi_packets">분석 패킷</string>
+    <string name="stats_kpi_power_off">전원 차단 의심</string>
+    <string name="stats_kpi_avg_alerts">세션당 평균 경고</string>
+    <string name="stats_kpi_peak_risk">역대 최고 위험도</string>
+    <string name="stats_chart_trend_title">최근 세션별 탐지 추이</string>
+    <string name="stats_chart_trend_subtitle">세션별 의심 기기 수 및 최고 위험 점수</string>
+    <string name="stats_legend_alerts">의심 기기</string>
+    <string name="stats_legend_high_risk">고위험</string>
+    <string name="stats_chart_breakdown_title">신호 유형 및 탐지 사유 분석</string>
+    <string name="stats_ble_vs_wifi">BLE vs Wi-Fi 경고 비율</string>
+    <string name="stats_reason_split">탐지 사유 분포</string>
+    <string name="stats_audio_share">오디오/웨어러블/핫스팟 의심 비율</string>
+    <string name="stats_risk_dist_title">위험도 점수 구간 분포</string>
+    <string name="stats_risk_low">낮음 (0–39)</string>
+    <string name="stats_risk_med">주의 (40–69)</string>
+    <string name="stats_risk_high">고위험 (70–100)</string>
+    <string name="stats_top_mfr_title">주요 탐지 제조사 Top</string>
+    <string name="stats_top_devices_title">빈출 의심 기기 Top</string>
+    <string name="stats_count_times">%1$d회 · 최고 %2$d점</string>
+
+    <!-- Dynamic Scanner Labels -->
+    <string name="idle_btn_start_sec">PHASE 1: 기준선 스캔 시작 (%1$d초)</string>
+    <string name="idle_hero_desc_sec">빈 강의실 중앙에서 %1$d초간 주변 BLE/Wi-Fi 기준선(Baseline)을 수집한 뒤, 시험 시작과 동시에 신규 기기 유입 및 급접근을 자동 감시합니다.</string>
+    <string name="radar_scale_seat_dynamic">%1$d dBm (좌석 특정)</string>
+
+    <!-- Settings Modal -->
+    <string name="action_open_settings">설정</string>
+    <string name="settings_title">설정</string>
+    <string name="settings_subtitle">스캔 소스, 탐지 민감도, 레이더 및 화면 표시 설정</string>
+    <string name="settings_section_general">일반 및 화면</string>
+    <string name="settings_language">언어</string>
+    <string name="settings_theme">테마</string>
+    <string name="settings_keep_screen_on">화면 항상 켜기</string>
+    <string name="settings_keep_screen_on_desc">감독 중 화면이 자동으로 꺼지지 않도록 유지합니다.</string>
+
+    <string name="settings_section_scanner">스캐너 및 감지 소스</string>
+    <string name="settings_enable_ble">Bluetooth LE 스캔</string>
+    <string name="settings_enable_ble_desc">무선 이어폰, 스마트워치 및 BLE 비콘 신호를 탐지합니다.</string>
+    <string name="settings_enable_wifi">Wi-Fi 핫스팟 스캔</string>
+    <string name="settings_enable_wifi_desc">모바일 핫스팟 및 테더링 네트워크를 탐지합니다.</string>
+    <string name="settings_at_least_one_source">최소 1개 이상의 스캔 소스(BLE 또는 Wi-Fi)가 켜져 있어야 합니다.</string>
+    <string name="settings_wifi_interval">Wi-Fi 스캔 주기</string>
+    <string name="settings_auto_save">스캔 종료 시 자동 저장</string>
+    <string name="settings_auto_save_desc">스캔을 중지할 때 기록을 자동으로 저장합니다.</string>
+
+    <string name="settings_section_detection">탐지 엔진 민감도</string>
+    <string name="settings_baseline_duration">기준선 수집 시간</string>
+    <string name="settings_noise_floor">노이즈 차단 하한: %1$d dBm</string>
+    <string name="settings_noise_floor_desc">이 신호 세기보다 약한 원거리 잡음 신호는 무시합니다.</string>
+    <string name="settings_new_device_rssi">신규 기기 경고 기준: %1$d dBm</string>
+    <string name="settings_new_device_rssi_desc">새로 유입된 기기를 의심 기기로 판정하는 최소 신호 세기입니다.</string>
+    <string name="settings_surge_delta">급접근 판정 증가폭: +%1$d dB</string>
+    <string name="settings_surge_delta_desc">기준선 대비 이 수치 이상 신호가 강해지면 급접근으로 경고합니다.</string>
+    <string name="settings_power_off_timeout">전원 차단 판정 대기 시간</string>
+
+    <string name="settings_section_radar">레이더 및 피드백</string>
+    <string name="settings_radar_sound">레이더 비프음</string>
+    <string name="settings_radar_haptic">레이더 진동</string>
+    <string name="settings_seat_lock_rssi">좌석 특정 임계치: %1$d dBm</string>
+    <string name="settings_seat_lock_rssi_desc">타겟 신호가 이 수치 이상일 때 매우 근접(좌석 특정) 상태로 알립니다.</string>
+
+    <string name="settings_section_data">데이터 및 초기화</string>
+    <string name="settings_reset_defaults">설정 기본값으로 초기화</string>
+    <string name="settings_clear_history">모든 스캔 기록 삭제</string>
+    <string name="settings_clear_history_confirm_title">모든 스캔 기록을 삭제할까요?</string>
+    <string name="settings_clear_history_confirm_msg">저장된 스캔 기록 %1$d건을 모두 영구 삭제합니다. 되돌릴 수 없습니다.</string>
+    <string name="msg_settings_reset">설정이 기본값으로 초기화되었습니다.</string>
+    <string name="msg_history_cleared">모든 스캔 기록이 삭제되었습니다.</string>
+    <string name="action_close">닫기</string>
+</resources>
